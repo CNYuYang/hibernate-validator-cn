@@ -12,7 +12,7 @@ Hardy Ferentschik; Gunnar Morling; Guillaume Smet; 余阳 @CNYuYang (中文译)
 :toc: left
 :toclevels: 3
 :sectnumlevels: 5
-:docinfodir: {docinfodir}
+:docinfodir: ./
 :docinfo: shared,private
 :hvVersion: 7.0.1.Final
 :bvVersion: 3.0.0
@@ -23,6 +23,7 @@ Hardy Ferentschik; Gunnar Morling; Guillaume Smet; 余阳 @CNYuYang (中文译)
 :classmateVersion: 1.5.1
 :wildflyVersion: 22.0.0.Final
 :icons: font
+:favicon:
 :javaTechnotesBaseUrl: http://docs.oracle.com/javase/8/docs/technotes
 :javafxDocsUrl: http://docs.oracle.com/javase/8/javase-clienttechnologies.htm
 :bvSpecUrl: http://beanvalidation.org/2.0/spec/
