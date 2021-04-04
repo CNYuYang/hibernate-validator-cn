@@ -1,0 +1,210 @@
+[[validator-metadata-api]]
+== 使用约束元数据
+
+Jakarta Bean Validation 规范不仅提供了一个验证引擎，而且还提供了一个用于以统一的方式检索约束元数据的 API，无论是使用注释声明约束还是通过 XML 映射声明约束。阅读本章可以了解更多关于这个 API 及其可能性的信息。您可以在 `jakarta.validation.metadata` 包中找到所有的元数据 API 类型。
+
+本章中提供的例子基于<<metadata-example-car>>中所示的类和约束声明。
+
+[[metadata-example-car]]
+.使用的演示类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/Person.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/Vehicle.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/Car.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/Library.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/Book.java[tags=include]
+----
+====
+
+
+=== `BeanDescriptor`
+
+元数据 API 的入口点是 Validator `Validator#getConstraintsForClass()` 方法，它返回 {bvApiDocsUrl}?jakarta/validation/metadata/BeanDescriptor.html[`BeanDescriptor`] 接口的一个实例。使用这个描述符，您可以获得直接在 bean 本身(类或属性级)上声明的约束的元数据，但也可以检索表示单个属性、方法和构造函数的元数据描述符。
+
+<<metadata-example-using-beandescriptor>> 演示了如何检索 `Car` 类的  `BeanDescriptor` ，以及如何以断言的形式使用该描述符。
+
+[TIP]
+====
+如果由请求的类承载的约束声明无效，则抛出 `ValidationException` 。
+====
+
+[[metadata-example-using-beandescriptor]]
+.使用 `BeanDescriptor`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testBeanDescriptor]
+----
+====
+
+您可以通过 `isBeanConstrained()` 确定指定的类是否承载任何类或属性级别的约束。`isBeanConstrained()` 不能判断方法或构造函数约束。
+
+`getConstraintDescriptors()` 方法对于从 `ElementDescriptor` 派生的所有描述符都是通用的(参见<<validator-metadata-api-elementdescriptor>>) ，并返回一组描述符，它们表示直接在给定元素上声明的约束。对于 `BeanDescriptor` ，返回 bean 的类级别约束。关于 `ConstraintDescriptor` 的更多细节可以在<<section-constraint-descriptor>>中找到。
+
+通过 `getConstraintsForProperty()` 、 `getConstraintsForMethod()` 和 `getConstraintsForConstructor()` ，您可以获得描述符，它表示一个给定的属性或可执行元素，通过其名称进行标识，对于方法和构造函数，还可以获得参数类型。这些方法返回的不同描述符类型将在下面的小节中描述。
+
+请注意，这些方法根据<<section-constraint-inheritance>>中描述的约束继承规则，考虑在超类型中声明的约束。一个例子是 `manufacturer` 属性的描述符，它提供了对 `Vehicle#getManufacturer()` 和实现方法 `Car#getManufacturer()` 上定义的所有约束的访问。如果指定的元素不存在或不受约束，则返回 `null` 。
+
+方法 `getConstrainedProperties()` 、 `getConstrainedMethods()` 和 `getConstrainedConstructors()`  返回集合(可能是空的)分别具有所有约束属性、方法和构造函数。如果一个元素至少有一个约束或者被标记为级联验证，则认为该元素受到约束。在调用 `getConstrainedMethods()` 时，可以指定要返回的方法的类型(getter、 non-getter 或者两者都是)。
+
+[[section-property-descriptor]]
+=== `PropertyDescriptor`
+
+接口 {bvApiDocsUrl}?jakarta/validation/metadata/PropertyDescriptor.html[`PropertyDescriptor`] 表示类的一个给定属性。只要遵守 JavaBeans 命名约定，那么在字段或属性 getter 上声明约束是透明的。<<metadata-example-using-propertydescriptor>>展示了如何使用 `PropertyDescriptor` 接口。
+
+[[metadata-example-using-propertydescriptor]]
+.使用 `PropertyDescriptor`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testPropertyDescriptor]
+----
+====
+
+使用 `getConstraintDescriptors()` ，您可以检索一组 `ConstraintDescriptors` ，提供给定属性的各个约束的更多信息。如果属性标记为级联验证(使用 `@Valid` 注释或通过 XML) ，则 `isCascaded()` 方法返回 `true` ，否则返回 `false` 。`getGroupConversions()` 返回任何已配置的组转换。有关 `GroupConversionDescriptor` 的详细信息，请参阅<<section-group-conversion-descriptor>> 。
+
+=== `MethodDescriptor` 和 `ConstructorDescriptor`
+
+约束方法和构造函数分别由接口 {bvApiDocsUrl}?jakarta/validation/metadata/MethodDescriptor.html[`MethodDescriptor`] 和 {bvApiDocsUrl}?jakarta/validation/metadata/ConstructorDescriptor.html[`ConstructorDescriptor`] 表示。<<metadata-example-using-methodandconstructordescriptor>> 演示了如何使用这些描述符。
+
+[[metadata-example-using-methodandconstructordescriptor]]
+.使用 `MethodDescriptor` 和 `ConstructorDescriptor`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testMethodAndConstructorDescriptor]
+----
+====
+
+`getName()` 返回给定方法或构造函数的名称。可以使用 `hasConstrainedParameters()` 和 `hasConstrainedReturnValue()` 方法快速检查可执行元素是否具有任何参数约束(单个参数约束或交叉参数约束)或返回值约束。
+
+注意，约束并不直接公开在 `MethodDescriptor` 和 `ConstructorDescriptor` 上，而是公开在表示可执行文件的参数、其返回值及其交叉参数约束的专用描述符上。要获得其中一个描述符，请分别调用 `getParameterDescriptors()`, `getReturnValueDescriptor()` 或 `getCrossParameterDescriptor()` 。
+
+这些描述符提供了对元素的约束(`getConstraintDescriptors()`)的访问，并且在参数和返回值的情况下，提供了对其级联验证( `isValid()` 和 `getGroupConversions()` )的配置的访问。对于参数，还可以通过 `getName()` 和 `getIndex()` 检索当前使用的参数名称提供程序(参见<<section-parameter-name-provider>>)返回的索引和名称。
+
+[TIP]
+====
+遵循 JavaBeans 命名约定的 Getter 方法被视为 bean 属性，但也被视为受约束的方法。
+
+这意味着您可以通过获取 `PropertyDescriptor` (例如 `BeanDescriptor.getConstraintsForProperty("foo")` )或通过检查 getter 的  `MethodDescriptor` 的返回值描述符(例如 `BeanDescriptor.getConstraintsForMethod("getFoo").getReturnValueDescriptor()` )来检索相关的元数据。
+====
+
+
+[[validator-metadata-api-elementdescriptor]]
+=== `ElementDescriptor`
+
+{bvApiDocsUrl}?jakarta/validation/metadata/ElementDescriptor.html[`ElementDescriptor`] 接口是各个描述符类型(如 `BeanDescriptor`, `PropertyDescriptor`  等)的公共基类。除了 `getConstraintDescriptors()` 之外，它还提供了一些所有描述符通用的方法。
+
+`hasConstraints()` 允许快速检查一个元素是否有任何直接的约束(例如，在 `BeanDescriptor` 中的类级约束)。
+
+`getElementClass()` 返回由给定描述符表示的元素的 Java 类型:
+
+* 在 `BeanDescriptor` 上调用时的对象类型,
+* 当分别在 `PropertyDescriptor` 或 `ParameterDescriptor` 上调用属性或参数时,
+* `Object[].class` 调用 `CrossParameterDescriptor` 时,
+* 在 `ConstructorDescriptor` 、 `MethodDescriptor` 或 `ReturnValueDescriptor` 上调用时的返回类型。类将为没有返回值的方法返回 `void.class` 。
+
+<<metadata-example-using-elementdescriptor>> 展示了如何使用这些方法。
+
+[[metadata-example-using-elementdescriptor]]
+.使用 `ElementDescriptor methods`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testElementDescriptor]
+----
+====
+
+最后，`ElementDescriptor` 提供了对 `ConstraintFinder` API 的访问，该 API 允许您以细粒度的方式查询约束元数据。 <<example-constraint-finder>> 展示了如何通过 `findConstraints()` 检索 `ConstraintFinder` 实例，并使用 API 查询约束元数据。
+
+[[example-constraint-finder]]
+.用法 `ConstraintFinder`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testConstraintFinderApi]
+----
+====
+
+通过 `declaredOn()` ，您可以搜索某些元素类型上声明的 `ConstraintDescriptors` 。这对于查找字段或 getter 方法上声明的属性约束非常有用。
+
+`unorderedAndMatchingGroups()` 将产生的约束限制为与给定验证组相匹配的约束。
+
+`lookingAt()` 允许区分直接在元素上指定的约束(`Scope.LOCAL_ELEMENT`)或属于元素但驻留在类层次结构中任何位置的约束(`Scope.HIERARCHY`)。
+
+您还可以组合上一个示例中所示的不同选项。
+
+[WARNING]
+====
+`unorderedAndMatchingGroups()` 不遵守顺序，但是通过序列的组继承和继承遵守顺序。
+====
+
+=== `ContainerDescriptor` 和 `ContainerElementTypeDescriptor`
+
+{bvApiDocsUrl}?jakarta/validation/metadata/ContainerDescriptor.html[`ContainerDescriptor`] 接口是所有支持容器元素约束和级联验证(`PropertyDescriptor`, `ParameterDescriptor`, `ReturnValueDescriptor`)的元素的公共接口。
+
+它有一个方法 `getConstrainedContainerElementTypes()` ，它返回一组 `ContainerElementTypeDescriptor`。
+
+`ContainerElementTypeDescriptor` 扩展 `ContainerDescriptor` 以支持嵌套容器元素约束。
+
+`ContainerElementTypeDescriptor` 包含有关容器、约束和级联验证的信息。
+
+<<metadata-example-using-containerelementtypedescriptor>>  展示了如何使用 `getConstrainedContainerElementTypes()` 检索 `ContainerElementTypeDescriptor` 集。
+
+[[metadata-example-using-containerelementtypedescriptor]]
+.使用 `ContainerElementTypeDescriptor`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/LibraryTest.java[tags=testContainerElementTypeDescriptor]
+----
+====
+
+[[section-group-conversion-descriptor]]
+=== `GroupConversionDescriptor`
+
+所有表示可以作为级联验证主题的元素的描述符类型(即 `PropertyDescriptor`, `ParameterDescriptor` 和 `ReturnValueDescriptor`)都通过 `getGroupConversions()` 提供对元素组转换的访问。返回的集合为每个配置的转换包含一个 {bvApiDocsUrl}?jakarta/validation//metadata/GroupConversionDescriptor.html[`GroupConversionDescriptor`] ，允许检索转换的源和目标组。<<metadata-example-using-groupconversiondescriptor>> 显示了一个示例。
+
+[[metadata-example-using-groupconversiondescriptor]]
+.使用 `GroupConversionDescriptor`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testGroupConversionDescriptor]
+----
+====
+
+[[section-constraint-descriptor]]
+=== `ConstraintDescriptor`
+
+最后， {bvApiDocsUrl}?jakarta/validation/metadata/ConstraintDescriptor.html[`ConstraintDescriptor`] 接口描述单个约束及其组成约束。通过该接口的一个实例，您可以访问约束注释及其参数。
+
+<<metadata-example-using-constraintdescriptor>>
+展示了如何从 `ConstraintDescriptor` 中检索默认约束属性(如消息模板、组等)以及自定义约束属性(`piecesOfLuggagePerPassenger`)和其他元数据(如约束的注释类型及其验证器)。
+
+[[metadata-example-using-constraintdescriptor]]
+.使用 `ConstraintDescriptor`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter10/CarTest.java[tags=testConstraintDescriptor]
+----
+====

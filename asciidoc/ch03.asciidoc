@@ -1,0 +1,396 @@
+[[chapter-method-constraints]]
+== 声明和校验 method 约束
+
+从 Bean Validation 1.1 开始，约束不仅应用于 JavaBeans 中的变量及其 Getter 方法 ,还可以应用于 Java 方法的返回值和构造函数的参数。同样也是使用 Jakarta Bean Validation 约束来指定。
+
+* 在调用方法或构造函数之前（对可执行方法的输入参数施加约束），可以保证调用者必须满足的前提条件
+* 在方法或构造函数调用返回后（通过将约束应用于可执行方法的返回值），可以保证调用方可以保证的后置条件
+
+[NOTE]
+====
+对于本参考指南，_method constraint(方法约束)_ 既指方法约束，也指构造函数约束，如果没有另行说明的话。有时，在引用方法和构造函数时会使用术语 _executable(可执行方法)_。
+====
+
+与传统的检查参数和返回值正确性的方法相比，这种方法有几个优点:
+
+* 检查不必手动执行(例如通过引发 `IllegalArgumentException` 或类似的异常) ，从而减少了需要编写和维护的代码
+* 可执行方法的输入、返回约束不必在其文档中重新表示，因为约束注解将自动包含在生成的 JavaDoc 中。这样可以避免冗余，并减少实现和文档之间不一致的可能性
+
+[TIP]
+====
+为了使注解显示在被注解元素的 JavaDoc 中，注解类型本身必须使用元注解 @Documented 来注解。所有内置约束都标注了该注解，并且被认为是任何自定义约束的最佳实践。
+====
+
+在本章剩下的部分中，您将学习如何声明输入参数和返回值约束，以及如何使用 `ExecutableValidator` API 校验它们。
+
+[[section-declaring-method-constraints]]
+=== 声明 method 约束
+
+==== 参数约束
+
+您可以通过向方法或构造函数的输入参数添加约束注解来指定方法或构造函数的前置条件，如 <<example-declaring-parameter-constraints>>。
+
+[[example-declaring-parameter-constraints]]
+.声明方法和构造函数参数约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/parameter/RentalStation.java[tags=include]
+----
+====
+
+这里表示了以下先决条件:
+
+* `RentalCar` 构造函数中 `name` 字段不能为 `null`
+* 当调用 `rentCar()` 方法时,  `customer` 字段不能为 `null`, `startDate` 字段不能为 `null` 且为将来的时间， `durationInDays` 字段的最小值为1。
+
+请注意，声明方法或构造函数约束本身并不会在调用该方法时自动导致它们的进行校验。相反，必须使用 `ExecutableValidator` API (see
+<<section-validating-executable-constraints>>) 来执行校验，底层的实现方法通常使用方法拦截工具(如 AOP、代理对象等)来完成。
+
+约束只能应用于实例方法，即不支持在静态方法上声明约束。根据您用于触发方法校验的拦截技术，可能会适用其他限制，例如，关于被支持作为拦截目标的方法的可见性。请参阅拦截技术的文档以查明是否存在任何此类限制。
+
+===== 交叉参数约束
+
+有时，一次校验不仅依赖于单个参数，而是依赖于方法或构造函数的多个甚至全部参数。这种需求可以通过交叉参数约束来实现。
+
+交叉参数约束可视为等价于类级约束的方法校验。两者都可用于实现基于几个元素的校验需求。不同之处在于类级别约束适用于 bean 的多个属性，但交叉参数约束适用于可执行方法的多个参数。
+
+与单参数约束不同，交叉参数约束是在方法或构造函数上声明的，如 <<example-using-cross-parameter-constraint>> 。这里使用了 `load()` 方法中声明的交叉参数约束 `@LuggageCountMatchesPassengerCount` ，以确保旅客的行李不超过两件。
+
+[[example-using-cross-parameter-constraint]]
+.声明交叉参数约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/crossparameter/Car.java[tags=include]
+----
+====
+
+正如您将在下一节中了解到的，返回值约束也是在方法级别声明的。为了区分跨参数约束和返回值约束，在自定义约束注解的实现校验器 `ConstraintValidator` 上，标注 `@SupportedValidationTarget` 注解。您可以参阅 
+<<section-cross-parameter-constraints>> ，该节展示了如何实现自己的交叉参数约束。
+
+在某些情况下，约束即可以应用于可执行方法的参数(即它是一个交叉参数约束) ，也可以应用于返回值。例如，允许使用表达式或脚本语言指定校验规则的自定义约束。
+
+这样的约束必须定义一个成员 `validationAppliesTo()` ，它可以在声明时用于指定约束目标。如<<example-specifying-constraint-target>> 通过指定 
+`validationAppliesTo = ConstraintTarget.PARAMETERS`, 将约束应用于可执行方法的输入参数校验，而 `ConstraintTarget.RETURN_VALUE`  用于将约束应用于可执行方法的返回值校验。
+
+[[example-specifying-constraint-target]]
+.指定约束的目标
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/crossparameter/constrainttarget/Garage.java[tags=include]
+----
+====
+
+尽管这种约束既适用于可执行方法的参数和返回值，但目标方法通常可以自动推断。如果出现下面几种情况，就可以确定作用对象
+
+* 带输入参数，但无返回值函数 (约束作用于输入参数上)
+* 无输入参数，但有返回值的函数 (约束作用于返回参数上)
+* 既不是方法也不是构造函数，而是字段、参数等 (约束作用于带注解的元素)
+
+在这些情况下，您不必指定约束目标。如果它增加了源代码的可读性，仍然建议这样做。如果在无法自动确定约束目标的情况下，也未指定该约束目标，则会引发 `ConstraintDeclarationException`。
+
+==== 返回值约束
+
+方法或构造函数的返回参数的校验也可以通过添加约束注解来声明，如<<example-declaring-return-value-constraints>> 。
+
+[[example-declaring-return-value-constraints]]
+.声明方法和构造函数返回值约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/returnvalue/RentalStation.java[tags=include]
+----
+====
+
+下面是 `RentalStation` 类声明的约束:
+
+* 创建 `RentalStation` 对象必须通过 `@ValidRentalStation` 校验
+* `getCustomers()` 返回值不能为 `null` ，并且必须至少包含元素( list.size() > 0 )
+* `getCustomers()` 包含的元素( `Customer` 对象 )不能为 `null` 对象
+
+[NOTE]
+====
+正如您在上面的示例中看到的，方法返回值校验支持集合元素约束。同样的方法参数校验也支持它们。
+====
+
+==== 级联校验
+
+类似于 JavaBeans 属性的级联校验  (see
+<<section-object-graph-validation>>), `@Valid` 注解可用于标记可执行参数和级联校验的返回值。在校验带有 `@Valid` 注解的输入参数或返回值时，也会校验在输入参数或返回值对象中声明的约束。
+
+在 <<example-cascaded-executable-validation>> 中, `Garage#checkCar()` 方法的输入参数 `car` 和构造函数 `Garage` 一样都会进行级联校验。
+
+[[example-cascaded-executable-validation]]
+.级联校验标记输入参数和返回值
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/cascaded/Garage.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/cascaded/Car.java[tags=include]
+----
+====
+
+在校验 `checkCar()` 方法的输入参数时, 还将计算传递的 `Car` 对象的属性上的约束。类似地，在校验 `Garage`  构造函数的返回值时，将检查 `Garage` 的 name 字段的 `@NotNull` 约束。
+
+通常，级联校验对可执行方法的工作方式与上一章对 JavaBeans 属性的工作方式完全相同。
+
+特别是，在级联校验过程中忽略 `null` (当然在构造函数返回值校验过程中不会发生这种情况) ，并且级联校验是递归执行的，例如，如果标记为级联校验的参数或返回值对象本身的属性标记为 `@Valid` ，那么在被引用元素上声明的约束也将得到校验。
+
+与字段和属性一样，还可以对返回值和输入参数的容器元素(例如集合元素、映射或自定义容器)声明级联校验。
+
+在这种情况下，将校验容器中包含的每个元素。在校验 
+<<example-cascaded-executable-validation-container-elements>> 中的 `checkCars()` 方法的输入参数时, 将对列表里的每一个 `Car` 实例进行校验，并在校验失败的情况下创建 `ConstraintViolation` 对象。
+
+[[example-cascaded-executable-validation-container-elements]]
+.标记为级联校验的方法参数的容器元素
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/cascaded/containerelement/Garage.java[tags=include]
+----
+====
+
+[[section-method-constraints-inheritance-hierarchies]]
+==== 继承层次中的方法约束
+
+在继承层次结构中声明方法约束时，注意以下规则非常重要:
+
+* 方法的调用方要满足的输入参数不能在子类的重写方法中加强
+* 保证给方法的调用方的输出参数不能在子类的重写方法中弱化
+
+这些规则是由 _behavioral subtyping_ 的概念驱动的，它要求在任何使用 `T` 类型的地方， 用 `T` 的 _subType(子类型)_ `S` 替换 `T` 但是不会改变程序的行为。
+
+举个例子，假设一个类调用一个静态方法返回 `T` ，如果该对象的运行时类型是 `S` ，而 `S` 加强了输入参数的校验，则客户端类可能无法满足这些前置条件，因为它们不知道这些前置条件。这一规则也被称为 http://en.wikipedia.org/wiki/Liskov_substitution_principle[Liskov
+substitution principle]。
+
+Jakarta Bean Validation 规范实现了第一个规则，它禁止对重写或实现在超类型(超类或接口)中声明的方法进行参数约束。例
+<<example-illegal-parameter-constraints>> 
+
+[[example-illegal-parameter-constraints]]
+.子类型中的非法方法参数约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/parameter/Vehicle.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/parameter/Car.java[tags=include]
+----
+====
+
+`Car#drive()` 上面的 `@Max` 约束是非法的，因为此方法实现了接口方法 
+`Vehicle#drive()` 。注意，如果超类的方法本身没有声明任何参数约束，也不允许重写方法上的参数约束。
+
+此外，如果一个方法覆盖或实现了在几个并行超类型中声明的方法(例如，两个没有相互扩展的接口，或者一个类和一个没有被该类实现的接口) ，那么在任何涉及的类型中都不能为该方法指定参数约束。 <<example-illegal-parameter-constraints-parallel-types>> 违反了该规则。  `RacingCar#drive()` 重写了 `Vehicle#drive()` 和 `Car#drive()` 方法。
+所以 `RacingCar#drive()` 是非法的。
+
+#(译者注：原文档所写 Vehicle#drive() 是非法的，译者认为此出存在笔误。)#
+
+[[example-illegal-parameter-constraints-parallel-types]]
+.层次结构的并行类型中的非法方法参数约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/parallel/Vehicle.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/parallel/Car.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/parallel/RacingCar.java[tags=include]
+----
+====
+
+前面描述的限制规则只适用于输入参数约束。相反，返回值约束可以添加到重写或实现任何超类方法的方法上。
+
+在这种情况下，所有方法的返回值约束都适用于子类型方法，即子类型方法本身上声明的约束，以及重写/实现的超类型方法上的任何返回值约束。这是合法的，因为增加额外的回报值约束可能永远不会削弱方法调用者得到的后置条件保证。
+
+在 <<example-return-value-constraints-in-hierarchy>> 中，校验 `Car#getPassengers()` 方法的返回值， `@Size` 方法也会在重写的 `Vehicle#getPassengers()` 的返回值被校验。
+
+[[example-return-value-constraints-in-hierarchy]]
+.超类型和子类型方法的返回值约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/returnvalue/Vehicle.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritance/returnvalue/Car.java[tags=include]
+----
+====
+
+如果校验引擎检测到违反了上述任何规则，则将抛出
+`ConstraintDeclarationException` 异常
+
+[NOTE]
+====
+本节中描述的规则只适用于方法，而不适用于构造函数。根据定义，构造函数永远不会重写超类型构造函数。因此，在校验构造函数调用的参数或返回值时，只应用构造函数本身声明的约束，而不应用超类型构造函数声明的任何约束。
+====
+
+[TIP]
+====
+在创建 Validator 实例之前，可以通过设置  `MethodValidationConfiguration` 的   `HibernateValidatorConfiguration` 属性中包含的配置参数来放松这些规则的实施。 参见 <<section-method-validation-prerequisite-relaxation>>.
+====
+
+[[section-validating-executable-constraints]]
+=== 校验 method 约束
+
+方法约束的校验使用 `ExecutableValidator` 接口完成。
+
+在 <<section-obtaining-executable-validator>> 你将学会如何掌握一个 `ExecutableValidator`
+实例。 在 <<section-executable-validator-methods>> 展示了如何使用这个接口定义的不同方法。
+
+`ExecutableValidator` 不是直接从应用程序代码中调用需要校验方法，而是通过方法拦截技术(如 AOP、代理对象等)调用它们。这将导致在方法或构造函数调用时自动和透明地校验可执行约束。通常，integration 层在违反任何约束时都会引发 `ConstraintViolationException` 。
+
+[[section-obtaining-executable-validator]]
+==== 获取 `ExecutableValidator` 实例
+
+可以通过 `Validator#forExecutables()` 检索 `ExecutableValidator` 实例，如
+<<example-obtaining-executable-validator>> 。
+
+[[example-obtaining-executable-validator]]
+.获取 `ExecutableValidator` 实例
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/CarTest.java[tags=setUpValidator]
+----
+====
+
+在这个例子中，方法校验器是从默认校验器工厂(default validator factory)获取的，但是如果需要做相关配置的话，您可以阅读
+<<chapter-bootstrapping>> 。例如，为了使用特定的参数名称提供器
+(参见 <<section-parameter-name-provider>>)。
+
+[[section-executable-validator-methods]]
+==== `ExecutableValidator` 的方法
+
+`ExecutableValidator` 接口提供了四种方法:
+
+* `validateParameters()` 和 `validateReturnValue()` 用于方法的校验
+* `validateConstructorParameters()` 和 `validateConstructorReturnValue()` 用于构造函数的校验
+
+和 `Validator` 的方法一样,所有这些方法都返回一个 `Set<ConstraintViolation>` ，它包含每个违反的约束的  `ConstraintViolation` ，如果校验成功，该返回值将为空 Set 。此外，所有方法都有一个可变长 groups 参数，您可以通过该参数传递要进行校验的校验组。
+
+以下部分中的示例基于 <<example-executable-validator-class-car>> 中的 `Car` 类。
+
+[[example-executable-validator-class-car]]
+.`Car` 使用约束方法和构造函数
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/Car.java[tags=include]
+----
+====
+
+===== `ExecutableValidator#validateParameters()`
+
+`validateParameters()` 法用于校验方法调用的参数。在
+<<example-executable-validator-validate-parameters>> 中 `drive()` 方法违法了 `@Max` 约束。
+
+[[example-executable-validator-validate-parameters]]
+.使用 `ExecutableValidator#validateParameters()`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/CarTest.java[tags=validateParameters]
+----
+====
+
+请注意 `validateParameters()` 校验方法的所有参数约束，即包括单个参数的约束以及交叉参数约束。
+
+===== `ExecutableValidator#validateReturnValue()`
+
+使用 `validateReturnValue()` 可以校验方法的返回值。在
+<<example-executable-validator-validate-return-value>> 产生一个约束冲突，因为 `getPassengers()` 方法需要至少返回一个 `Passenger` 实例。
+
+[[example-executable-validator-validate-return-value]]
+.使用 `ExecutableValidator#validateReturnValue()`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/CarTest.java[tags=validateReturnValue]
+----
+====
+
+===== `ExecutableValidator#validateConstructorParameters()`
+
+使用 `validateConstructorParameters()` 校验构造函数调用的参数，如<<example-executable-validator-validate-constructor-parameters>>. 因为 `manufacturer` 字段的 `@NotNull` 约束，校验调用返回一个约束冲突。
+
+[[example-executable-validator-validate-constructor-parameters]]
+.使用 `ExecutableValidator#validateConstructorParameters()`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/CarTest.java[tags=validateConstructorParameters]
+----
+====
+
+===== `ExecutableValidator#validateConstructorReturnValue()`
+
+最后，通过使用 `validateConstructorReturnValue()` ，可以校验构造函数的返回值。
+<<example-executable-validator-validate-constructor-return-value>>, `validateConstructorReturnValue()`
+返回一个约束冲突，因为构造函数返回的 `Car` 实例不满足 `@ValidRacingCar`  约束。
+
+[[example-executable-validator-validate-constructor-return-value]]
+.使用 `ExecutableValidator#validateConstructorReturnValue()`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/CarTest.java[tags=validateConstructorReturnValue]
+----
+====
+
+==== 校验方法的结果 `ConstraintViolation` 
+
+除了 <<section-constraint-violation-methods>> 介绍的方法之外，`ConstraintViolation` 还提供了另外两个特定于校验可执行参数和返回值的方法。
+
+`ConstraintViolation#getExecutableParameters()` 在方法或构造函数参数校验的情况下返回校验过的参数数组 ， 而 `ConstraintViolation#getExecutableReturnValue()`
+在返回值校验的情况下提供对校验对象的访问。
+
+`ConstraintViolation` 所有其他方法通常都以校验 bean 的方式一样。
+
+注意 `getPropertyPath()` 对于获取有关校验参数或返回值的详细信息非常有用，例如用于日志记录。特别是，您可以从路径节点检索相关方法的名称和参数类型以及相关参数的索引。<<example-executable-validation-property-path>> 中显示了如何做到这一点。
+
+[[example-executable-validation-property-path]]
+.检索方法和参数信息
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation/CarTest.java[tags=retrieveMethodAndParameterInformation]
+----
+====
+
+参数名称是使用当前的 `ParameterNameProvider` (参见
+<<section-parameter-name-provider>>).
+
+[[section-builtin-method-constraints]]
+=== 内置 method 约束
+
+除了 <<section-builtin-constraints>> 中讨论的内置 bean 和属性级约束之外，Hibernate Validator 目前还提供了一个方法级约束 `@ParameterScriptAssert` 这是一个通用的交叉参数约束，它允许使用任何与 JSR 223兼容(“ Java ^TM^ 平台的脚本编写”)的脚本语言实现校验例程，前提是在类路径中可以使用这种语言的引擎。
+
+若要从表达式内引用可执行方法的参数，请使用从激活的参数名称提供者获得的参数名称 (see <<section-parameter-name-provider>>).
+<<example-parameterscriptassert>> 示了如何在 `@LuggageCountMatchesPassengerCount`
+的帮助下表示 <<example-using-cross-parameter-constraint>> 的 `@ParameterScriptAssert` 约束的校验逻辑。 
+
+[[example-parameterscriptassert]]
+.使用 `@ParameterScriptAssert`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/parameterscriptassert/Car.java[tags=include]
+----
+====

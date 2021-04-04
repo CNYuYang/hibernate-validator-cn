@@ -1,0 +1,152 @@
+[[chapter-message-interpolation]]
+== 添加约束错误消息
+
+消息插值是违反 Jakarta Bean Validation 约束后创建错误消息的过程。在本章中，您将学习如何定义和解析这些消息，以及如何在默认算法不足以满足需求的情况下插入自定义消息插入器。
+
+[[section-message-interpolation]]
+=== 默认消息插值
+
+违反约束的消息是从所谓的消息descriptors(描述器)中检索的。每个约束都定义了它们自己其默认消息descriptors(描述器)。在声明时，默认descriptors(描述器)可以被特定的值覆盖，如 <<example-overriding-message>>.
+
+[[example-overriding-message]]
+.使用消息属性指定消息描述符
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter04/Car.java[tags=include]
+----
+====
+
+如果违反了相关约束注解，将由validation引擎使用当前配置的 `MessageInterpolator` 进行消息的构建。然后通过调用 `ConstraintViolation#getMessage()` 方法可以获取结果。
+
+消息描述符可以包含 _message parameters(消息参数)_ 以及在插值期间将要解析的 _message expressions(消息表达式)_ 。消息参数是封闭在 `{}` 中的字符串，而消息表达式是封闭在 `${}` 中的字符串。在方法插值过程中应用了以下算法:
+
+. 将 _message parameters(消息参数)_ 作为键值(key)在资源包 _ValidationMessages_ 中检索value值。 如果这个资源包包含给定 _message parameters(消息参数)_ ，那么该参数的value将替换在消息中的 _message parameters(消息参数)_ 。如果替换的值再次包含消息参数，将递归地执行此步骤。资源包应该由应用程序开发人员提供，例如，通过将名为 _ValidationMessages.properties_ 的文件添加到 classpath 中。您还可以通过提供此包的特定于国家的语言文件(如 _$$ValidationMessages_en_US.properties$$_ )来创建本地化的错误消息。默认情况下，在包中查找消息时将使用 JVM 的默认语言环境( `Locale#getDefault()` )。
+
+. 通过将任何消息参数用作包含 Jakarta Bean Validation规范附录 B 中定义的内置约束的标准错误消息的资源包的键来解析它们。对于 Hibernate Validator，这个绑定包名为 `org.hibernate.validator.ValidationMessages` 。如果此步骤触发替换，则再次执行步骤1，否则应用步骤3。
+
+. 通过将任何消息参数替换为具有相同名称的约束注解成员的值来解析它们。这允许在错误消息 (例如"must be at least ${ min }") 中引用约束的属性值(例如 `Size#min()`)。
+
+. 通过将任何消息表达式计算为统一表达式语言表达式来解析它们。请参阅<<section-interpolation-with-message-expressions>> 了解有关在错误消息中使用统一 EL 的更多信息。
+
+[TIP]
+====
+您可以在 Jakarta Bean Validation 规范的6.3.1.1节中找到插值算法的形式化定义。
+====
+
+[[section-special-characters]]
+==== 特殊字符
+
+由于字符 `{`, `}` 和 `$` 在消息描述符中具有特殊的含义，如果要按字面意思使用它们，就需要对它们进行转义。以下规则适用:
+
+* `\{` 代表字符 `{`
+* `\}` 代表字符 `}`
+* `\$` 代表字符 `$`
+* `\\` 代表字符 `\`
+
+
+[[section-interpolation-with-message-expressions]]
+==== 带有消息表达式的插值
+
+从 Hibernate Validator 5 (Bean Validation 1.1) 开始，可以在违反约束的消息中使用
+https://projects.eclipse.org/projects/ee4j.el[Jakarta Expression Language] 。这允许基于条件逻辑定义错误消息，还支持高级格式化输出。验证引擎使以下对象在 EL 上下文中可用:
+
+* 通过约束的属性名称映射到配置的值
+* _validatedValue_ 表式的当前验证的值(属性、 bean、方法参数等)
+* 也可以用 `format(String format, Object…​ args)` 格式化输出，它的行为类似于 `java.util.Formatter.format(String format, Object... args)` 。
+
+Expression Language非常灵活，Hibernate Validator 提供了几个特性级别，您可以通过 `ExpressionLanguageFeatureLevel` 这个枚举来启用不同等级表达式语言特性:
+
+* `NONE`: Expression Language 插值完全禁用。
+* `VARIABLES`: 允许通过 `addExpressionVariable()`, 资源包 和  `formatter` 对象.
+* `BEAN_PROPERTIES`: 除了 `VARIABLES` 允许的还包括插入bean的属性(Getter方法)。
+* `BEAN_METHODS`: 还允许使用可执行方法的返回值。对于硬编码的约束消息可以认为是安全的，但是对于需要额外注意的 <<section-hibernateconstraintvalidatorcontext, custom violations>> (自定义约束)。
+
+约束消息的默认特性级别是 `BEAN_PROPERTIES`。
+
+你也可以在启动的时候设置级别 <<el-features, bootstrapping the `ValidatorFactory`>>.
+
+以下部分提供了在错误消息中使用 EL 表达式的几个示例：
+
+==== 示例
+
+<<example-message-descriptors>> 展示了如何使用不同的选项来指定消息descriptors(描述符)。
+
+[[example-message-descriptors]]
+.指定消息descriptors(描述符)
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter04/complete/Car.java[tags=include]
+----
+====
+
+校验这个无效的 `Car` 实例会产生以下违反约束的行为，用该单元测试验证 <<example-expected-error-messages>>
+
+* `manufacturer` 字段的 `@NotNull` 约束将输出错误信息 "must not be null" ，这是由的Jakarta Bean Validation 规范定义的，加之你没有特殊的指定输出信息。
+
+* `licensePlate` 字段的 `@Size` 约束，展示如何使用 _message parameters(消息参数)_  (`{min}`, `{max}`) 以及如何添加当前校验值，通过EL表达式: `${validatedValue}`。
+
+* `seatCount` 字段的 `@Min` 约束，演示了如何使用带有三元表达式的 EL 表达式动态选择单数或复数形式，这取决于约束的属性("There must
+be at least 1 seat" vs. "There must be at least 2 seats")
+
+* `topSpeed` 字段的 `@DecimalMax` 展示了如何使用格式化(formatter.format)程序实例输出已验证的值
+
+* 最后，`price` 字段的 `@DecimalMax` 约束展示了参数插值优先于表达式求值声明，也就是 `$` 符号显示在最大价格前面
+
+[TIP]
+====
+只有实际的约束属性可以使用格式 `{attributeName}`
+。当引用添加到插值上下文中的验证值或自定义表达式变量时(参见  <<section-hibernateconstraintvalidatorcontext>>), 必须使用形式为 `${attributeName}` 的 EL 表达式。
+====
+
+[[example-expected-error-messages]]
+.判断是否为预期的错误消息
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter04/complete/CarTest.java[tags=messageDescriptors]
+----
+====
+
+[[section-custom-message-interpolation]]
+=== 自定义消息插值
+
+如果默认的消息插值算法不符合您的要求，也可以自己实现一个 `MessageInterpolator` 。
+
+自定义插值器必须实现接口 `jakarta.validation.MessageInterpolator`。 注意，您的实现必须是线程安全的。建议自定义消息内插器将最终实现委托给缺省的内插器，可以通过 
+`Configuration#getDefaultMessageInterpolator()` 获取。
+
+为了使用自定义消息插入器，必须在 Jakarta Bean Validation XML 配置文件 _META-INF/validation.xml_ (参见 <<section-configuration-validation-xml>>) 中配置它，或者启动过程中配置 `ValidatorFactory` 或 `Validator` 时传递它 (参见 <<section-validator-factory-message-interpolator>> 和 <<section-configuring-validator>>, respectively).
+
+[[section-resource-bundle-locator]]
+==== `ResourceBundleLocator`
+
+在某些用例中，您希望使用 Bean Validation 规范定义的消息插值算法，但是从 _ValidationMessages_ 以外的其他资源包中检索错误消息。在这种情况下 Hibernate Validator 的 `ResourceBundleLocator` SPI 可以提供帮助。
+
+Hibernate Validator 中的缺省消息内插器 `ResourceBundleMessageInterpolator` 通过 SPI 技术检索具体的实现。在启动加载程序 `ValidatorFactory` 时，使用替代的资源包只需要传递一个具有资源包 `PlatformResourceBundleLocator` 实例的名称，如 <<example-using-specific-resource-bundle-locator>>.
+
+[[example-using-specific-resource-bundle-locator]]
+.使用特定的资源包
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter04/resourcebundlelocator/ResourceBundleLocatorTest.java[tags=messagesRetrievedFromSpecificBundle]
+----
+====
+
+当然，您也可以实现一个完全不同的 `ResourceBundleLocator`, 例如，它可以将数据库中的记录作为返回的资源信息。在这种情况下，您可以通过 
+`HibernateValidatorConfiguration#getDefaultResourceBundleLocator()` 获得默认locator(定位器)，例如，您可以使用它作为备用数据源。
+
+除了 `PlatformResourceBundleLocator` 之外，Hibernate Validator还提供了另一个资源包locator(定位器)实现，即 `AggregateResourceBundleLocator` ，它允许从多个资源包检索错误消息。例如，您可以在多模块应用程序中使用此实现，其中每个模块需要一个消息包。<<example-using-aggregate-resource-bundle-locator>> 展示了如何使用 `AggregateResourceBundleLocator` 。
+
+[[example-using-aggregate-resource-bundle-locator]]
+.使用 `AggregateResourceBundleLocator`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter04/resourcebundlelocator/ResourceBundleLocatorTest.java[tags=usingAggregateResourceBundleLocator]
+----
+====
+
+请注意，资源包是按照传递给构造函数的顺序处理的。这意味着，如果多个资源包包含给定消息键的条目，则该值将从包含该键的列表中的第一个资源包中取出。

@@ -1,0 +1,464 @@
+[[chapter-bootstrapping]]
+== Bootstrapping
+
+在 <<section-obtaining-validator>>,您已经看到了一种创建 `Validator` 实例的方法 - 通过
+`Validation#buildDefaultValidatorFactory()`。在本章中，您将学习如何使用 `jakarta.validation.Validation` 中的其他方法。以便引导生成特定配置的校验器。
+
+[[section-retrieving-validator-factory-validator]]
+=== 获取 `ValidatorFactory` 和 `Validator`
+
+你可以通过 `jakarta.validation.Validation` 的静态方法获取一个 `ValidatorFactory` 实例。再通过调用 `ValidatorFactory` 工厂实例的 `getValidator()` 方法获取 `Validator` 对象。
+
+<<example-build-default-validator-factory>> 展示了如何从默认校验器工厂获得校验器:
+
+[[example-build-default-validator-factory]]
+.获取默认 `ValidatorFactory` 以及 `Validator`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=buildDefaultValidatorFactory]
+----
+====
+
+[TIP]
+====
+生成的 `ValidatorFactory` 和 `Validator` 实例是线程安全的，可以进行缓存。由于 Hibernate Validator 使用工厂作为缓存约束元数据的上下文，因此建议在应用程序中只使用一个工厂实例。
+====
+
+Jakarta Bean Validation 支持在一个应用程序中多个provider(如 Hibernate Validator)一起工作。但是如果在classpath中存在多个provider，则不能保证在通过  `buildDefaultValidatorFactory()` 创建工厂时选择哪个provider。
+
+在这种情况下，您可以通过 `Validation#byProvider()` 显式指定要使用的provider，传递provider的 `ValidationProvider` 类，如<<example-using-specific-provider>>。
+
+[[example-using-specific-provider]]
+.获取 `ValidatorFactory` 和 `Validator` 通过指定的provider
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=byProvider]
+----
+====
+
+注意， `configure()` 返回的配置对象允许在调用 `buildValidatorFactory()` 之前专门定制工厂实例。本章后面将讨论可用的配置选项。
+
+类似地，您可以获取默认配置的校验器工厂，如<<example-configuring-default-provider>>。
+
+
+[[example-configuring-default-provider]]
+.获取默认配置的 `ValidatorFactory`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=byDefaultProvider]
+----
+====
+
+[NOTE]
+====
+如果 `ValidatorFactory` 实例不再使用，应该通过调用 `ValidatorFactory#close()` 来释放它。同时将释放掉给工厂分配的所有资源。
+====
+
+[[section-validation-provider-resolver]]
+==== `ValidationProviderResolver`
+
+默认情况下，可用的 Jakarta Bean Validation provider是通过使用 {javaTechnotesBaseUrl}/guides/jar/jar.html#Service_Provider[Java
+Service Provider] 机制发现的。
+
+为此，每个提供者都包含文件 _META-
+INF/services/jakarta.validation.spi.ValidationProvider_ ，包含其 `ValidationProvider` 实现的完全限定类名。对于 Hibernate Validator，这是 `org.hibernate.validator.HibernateValidator`。
+
+根据您的环境及其类加载细节，Java 的服务加载器机制(SPI)可能无法工作。在这种情况下，您可以插入用于执行provider检索的自定义 `ValidationProviderResolver` 实现。一个例子是 OSGi，您可以在其中实现使用 OSGi 服务进行提供者发现的提供者解析器。
+
+要使用自定义provider解析器，请通过 `providerResolver()` 传递它，如<<example-using-custom-validation-provider-resolver>>。
+
+[[example-using-custom-validation-provider-resolver]]
+.使用自定义 `ValidationProviderResolver`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/OsgiServiceDiscoverer.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=providerResolver]
+----
+====
+
+[[section-configuring-validator-factory]]
+=== 配置 `ValidatorFactory`
+
+默认情况下，从 `Validation` 获取到的校验器工厂和它们创建的任何校验器都是根据 XML 描述符  _META-INF/validation.xml_  (参见<<chapter-xml-configuration>>)配置的。
+
+如果希望禁用基于 XML 的配置，可以通过调用 `Configuration#ignoreXmlConfiguration()` 来禁用。
+
+XML 配置的不同值可以通过 `Configuration#getBootstrapConfiguration()` 访问。例如，如果您希望将 Jakarta Bean Validation 集成到托管环境中，并希望创建通过 XML 配置的对象的托管实例，那么这可能会很有帮助。
+
+使用 fluent 配置 API，可以在引导 factory 时覆盖一个或多个默认配置。下面的部分将展示如何使用不同的配置选项。注意， `Configuration` 类公开了不同扩展点的默认实现，如果您希望将这些扩展点用作自定义实现的委托，那么这些扩展点非常有用。
+
+[[section-validator-factory-message-interpolator]]
+==== `MessageInterpolator`
+
+校验引擎使用Message interpolators(消息内插器)从约束消息描述符创建用户可读的错误消息。
+
+如果在<<chapter-message-interpolation>>中插值约束错误消息不足以满足您的需要，您可以通过配置 `Configuration#messageInterpolator()` 传递您自己的 `MessageInterpolator` 接口实现，如<<example-using-custom-message-interpolator>>。
+
+[[example-using-custom-message-interpolator]]
+.使用自定义 `MessageInterpolator`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/MyMessageInterpolator.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=messageInterpolator]
+----
+====
+
+[[section-validator-factory-traversable-resolver]]
+==== `TraversableResolver`
+
+在某些情况下，校验引擎不应该访问 bean 属性的状态。最明显的例子是 JPA 的延迟加载的属性或关联实体。校验这个延迟属性或关联意味着必须访问它的状态，从而触发数据库的加载。
+
+通过查询 `TraversableResolver` 接口，可以访问哪些属性，哪些属性不受控制。<<example-using-custom-traversable-resolver>> 展示了如何使用自定义可遍历解析器实现。
+
+[[example-using-custom-traversable-resolver]]
+.使用自定义 `TraversableResolver`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/MyTraversableResolver.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=traversableResolver]
+----
+====
+
+如果没有配置特定的可遍历解析器，则默认行为是将所有属性视为可访问和级联的。当 Hibernate Validator 和 JPA 2实现程序(如 Hibernate ORM)一起使用时，只有那些已经被持久层提供程序(ORM框架)加载的属性才被认为是可访问的，所有属性都被认为是级联的。
+
+默认情况下，每个校验调用都缓存可遍历的解析程序返回的结果。这在 JPA 环境中特别重要，因为在这种环境中调用 `isReachable()` 的成本很高。
+
+这种缓存会增加一些开销。如果您的自定义可遍历解析器非常快，那么最好考虑关闭缓存。
+
+你可以通过 XML 配置来禁用缓存:
+
+[[example-disabling-traversable-resolver-result-cache-xml-configuration]]
+.通过XML配置禁用 `TraversableResolver` 结果缓存
+====
+[source, XML, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/validation-DisableTraversableResolverResultCache.xml[]
+----
+====
+
+或者通过调用相关API:
+
+[[example-disabling-traversable-resolver-result-cache-programmatic-api]]
+.通过API禁用 `TraversableResolver` 缓存结果
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=traversableResolverDisableCache]
+----
+====
+
+==== `ConstraintValidatorFactory`
+
+`ConstraintValidatorFactory` 是用于自定义约束校验器如何实例化和释放的扩展点。
+
+Hibernate Validator 提供的默认 `ConstraintValidatorFactory` 需要一个public的无参构造函数来实例化 `ConstraintValidator` 实例(参见<<section-constraint-validator>>)。使用自定义 `ConstraintValidatorFactory` 可以提供在约束校验器(ConstraintValidator)实现中使用依赖注入。
+
+要配置自定义约束校验器工厂，请调用 `Configuration#constraintValidatorFactory()` (<<example-using-custom-constraint-validator-factory>>)。
+
+[[example-using-custom-constraint-validator-factory]]
+.使用自定义 `ConstraintValidatorFactory`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/MyConstraintValidatorFactory.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=constraintValidatorFactory]
+----
+====
+
+[WARNING]
+====
+任何依赖于特定于实现的 `ConstraintValidatorFactory`  行为的约束实现(依赖注入、无参数构造函数等等)都不被认为是可移植的。
+====
+
+[NOTE]
+====
+`ConstraintValidatorFactory` 实现不应该缓存校验器实例，因为每个实例的状态都可以在   `initialize()` 方法中更改。
+====
+
+[[section-parameter-name-provider]]
+==== `ParameterNameProvider`
+
+在违反方法或构造函数参数约束的情况下，将使用 `ParameterNameProvider` 检索参数名称，并通过违反约束的属性路径将其提供给用户。
+
+默认实现是通过 Java 反射 API 获得的参数名。如果使用 `-parameters` 编译器标志编译源代码，则会返回源代码中的实际参数名称。否则，将使用 `arg0` 、 `arg1` 等形式的合成名称。
+
+要使用自定义参数名称提供程序，可以在引导期间传递提供程序的实例，如<<example-using-custom-parameter-name-provider>>，或者指定提供程序的完全限定类名作为 _META-INF/validation.xml_ 文件中的 `<parameter-name-provider>` 节点的值(参见<<section-configuration-validation-xml>>)。示例<<example-using-custom-parameter-name-provider>>演示了这一点。
+
+[[example-using-custom-parameter-name-provider]]
+.使用自定义 `ParameterNameProvider`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/MyParameterNameProvider.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=parameterNameProvider]
+----
+====
+
+
+[TIP]
+====
+Hibernate Validator 提供了一个基于 link:https://github.com/paul-hammant/paranamer/[ParaNamer] 库的自定义 `ParameterNameProvider` 实现，它提供了几种在运行时获取参数名称的方法。请参阅<<section-paranamer-parameternameprovider>>以了解关于这个特定实现的更多信息。
+====
+
+[[section-clock-provider]]
+==== `ClockProvider` 和时间校验容忍度
+
+对于与时间相关的校验(例如 `@Past` 和 `@Future` 约束) ，很值得思考如何表示 `now`。
+
+当您希望以可靠的方式测试约束时，这一点尤其重要。
+
+引用时间由 `ClockProvider` `ClockProvider` 的职责是提供一个 `java.time.Clock` 定义 `now` 提供给时间相关的校验器使用。
+
+[[example-using-custom-clock-provider]]
+.使用自定义 `ClockProvider`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/FixedClockProvider.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=clockProvider]
+----
+====
+
+或者，在通过 _META-INF/validation.xml_ 配置默认校验器工厂时，您可以使用 `<clock-provider>` 元素指定 `ClockProvider` 实现的完全限定类名(参见<<chapter-xml-configuration>>)。
+
+[NOTE]
+====
+在校验 `@Future` 和 `@Past` 约束时，您可能希望获得当前时间。
+
+您可以通过调用 `ConstraintValidatorContext#getClockProvider()` 方法来获得校验器中的  `ClockProvider` 。
+
+例如，如果希望用更明确的消息替换 `@Future` 约束的缺省消息，这可能很有用。
+====
+
+在处理分布式体系架构时，在应用诸如 `@Past` 或 `@Future` 这样的时间约束时，您可能需要一定的容错能力。
+
+通过引导 `ValidatorFactory` ，可以设置时间校验容忍度，如下所示:
+
+[[example-using-temporal-validation-tolerance]]
+.使用时间校验公差
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=temporalValidationTolerance]
+----
+====
+
+或者，您可以在 XML 配置中定义它，方法是在 _META-INF/validation.xml_ 中设置 `hibernate.validator.temporal_validation_tolerance` 属性。
+
+此属性的值必须为 `long` ，以毫秒为单位定义公差。
+
+[NOTE]
+====
+在实现您自己的时间约束时，您可能需要访问时间校验容忍度。
+
+可以通过调用 `HibernateConstraintValidatorInitializationContext#getTemporalValidationTolerance()` 方法获得。
+
+注意，要在初始化时访问这个上下文，约束校验器必须实现 `HibernateConstraintValidator` 契约(参见<<constraint-validator-hibernateconstraintvalidator>>)。这份合同目前被标记为正在酝酿之中: 未来可能会发生变化。
+====
+
+[[section-bootstrapping-valueextractors]]
+==== 注册 ``ValueExtractor``s
+
+正如在<<chapter-valueextraction>>中提到的，值提取器可以在引导过程中注册(参见<<section-valueextraction-registeringvalueextractor>>的其他注册值提取器的方法)。
+
+<<example-registering-value-extractor>> 展示了我们如何注册先前创建的值提取器，以提取 Guava 的 `Multimap` 的键和值。
+
+[[example-registering-value-extractor]]
+.注册值提取器
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=valueExtractor]
+----
+====
+
+==== 添加映射流
+
+如前所述，您可以使用基于 XML 的约束映射配置应用于 Java beans 的约束。
+
+除了  _META-INF/validation.xml_ 中指定的映射文件之外，还可以通过 `Configuration#addMapping()` 添加进一步的映射(参见<<example-adding-mapping-streams>>)。注意，传递的输入流必须遵守<<section-mapping-xml-constraints>>中提出的约束映射的 XML 模式。
+
+[[example-adding-mapping-streams]]
+.添加约束映射流
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=addMapping]
+----
+====
+
+在创建了校验器工厂之后，应该关闭所有传递的输入流。
+
+[[section-provider-specific-settings]]
+==== Provider-specific 配置
+
+通过 `Validation#byProvider()` ()返回的配置对象，可以配置 `Provider-specific` 。
+
+对于 Hibernate Validator，这个例子允许您启用故障快速模式并传递一个或多个编程约束映射，如<<example-hibernate-validator-specific-options>>所示。
+
+[[example-hibernate-validator-specific-options]]
+.设置特定于 Hibernate Validator 的选项
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=providerSpecificOptions]
+----
+====
+
+另外，provider-specific 的选项可以通过 `Configuration#addProperty()` 传递。 Hibernate Validator 也支持以这种方式启用故障快速模式:
+
+[[example-hibernate-validator-specific-option-via-addproperty]]
+.通过 `addProperty()` 方式启用 Hibernate Validator 特定选项
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=providerSpecificOptionViaAddProperty]
+----
+====
+
+请参阅<<section-fail-fast>>和<<section-programmatic-api>>，以了解有关 Fail fast mode 和 constraint declaration API 的更多信息。
+
+[[section-script-evaluator-factory]]
+==== 配置 `ScriptEvaluatorFactory`
+
+对于像 `@ScriptAssert` 和 `@ParameterScriptAssert` 这样的约束，可以配置如何初始化脚本引擎以及如何构建脚本计算器。这可以通过设置 `ScriptEvaluatorFactory` 的自定义实现来实现。
+
+特别是，这对于模块化环境(例如 OSGi)非常重要，在这种环境中，用户可能会遇到模块化类加载和 https://www.jcp.org/en/jsr/detail?id=223[JSR 223] 的问题。它还允许使用任何自定义脚本引擎，不一定基于 https://www.jcp.org/en/jsr/detail?id=223[JSR 223] (例如 Spring Expression Language)。
+
+===== XML 配置
+
+要通过 XML 指定 `ScriptEvaluatorFactory` ，需要定义 `hibernate.validator.script_evaluator_factory` 属性。
+
+[[example-script-evaluator-factory-xml]]
+.通过 XML 定义 `ScriptEvaluatorFactory`
+====
+[source, XML, indent=0]
+----
+include::{resourcesdir}/org/hibernate/validator/referenceguide/chapter09/script-evaluator-factory-validation.xml[]
+----
+====
+
+在这种情况下，指定的 `ScriptEvaluatorFactory` 必须具有无参数构造函数。
+
+===== 程序化配置
+
+要以编程方式配置它，您需要将 `ScriptEvaluatorFactory` 的实例传递给 `ValidatorFactory` 。这为 `ScriptEvaluatorFactory` 的配置提供了更大的灵活性。<<example-script-evaluator-factory-programmatically>>显示了如何实现这一点。
+
+[[example-script-evaluator-factory-programmatically]]
+.以编程方式定义 `ScriptEvaluatorFactory` 
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=scriptEvaluatorFactoryProgrammatically]
+----
+====
+
+===== 自定义 `ScriptEvaluatorFactory` 的实现案例
+
+本节展示了两个自定义的 `ScriptEvaluatorFactory` 实现，它们可以在模块化环境中使用，也可以使用 https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html#expressions[Spring Expression Language] 编写约束脚本。
+
+模块化环境和 https://www.jcp.org/en/jsr/detail?id=223[JSR 223] 的问题来自类装载。脚本引擎可用的类装入器可能不同于 Hibernate Validator 。因此，使用默认策略将找不到脚本引擎。
+
+为了解决这个问题，可以引入下面的 `MultiClassLoaderScriptEvaluatorFactory` 类:
+
+====
+[source, JAVA, indent=0]
+----
+include::{osgi-integrationtest-sourcedir}/org/hibernate/validator/osgi/scripting/MultiClassLoaderScriptEvaluatorFactory.java[]
+----
+====
+
+然后声明:
+
+====
+[source, JAVA, indent=0]
+----
+include::{osgi-integrationtest-sourcedir}/org/hibernate/validator/osgi/integrationtest/OsgiIntegrationTest.java[tags=scriptEvaluatorFactoryMultiClassLoaderScriptEvaluatorFactory]
+----
+====
+
+这样，就可以传递多个 `ClassLoader` 实例: 通常是所需 ``ScriptEngine``s 的类加载器。
+
+OSGi 环境的另一种方法是使用下面定义的 `OsgiScriptEvaluatorFactory` :
+
+====
+[source, JAVA, indent=0]
+----
+include::{osgi-integrationtest-sourcedir}/org/hibernate/validator/osgi/scripting/OsgiScriptEvaluatorFactory.java[]
+----
+====
+
+然后声明:
+
+====
+[source, JAVA, indent=0]
+----
+include::{osgi-integrationtest-sourcedir}/org/hibernate/validator/osgi/integrationtest/OsgiIntegrationTest.java[tags=scriptEvaluatorFactoryOsgiScriptEvaluatorFactory]
+----
+====
+
+它是专门为 OSGi 环境设计的，并允许您传递 `BundleContext` ，该 `BundleContext` 将用于搜索 `ScriptEngineFactory` 作为参数。
+
+如前所述，您还可以使用不基于 https://www.jcp.org/en/jsr/detail?id=223[JSR 223] 的脚本引擎。
+
+例如，要使用 https://docs.spring.io/spring/docs/current/spring-framework-reference/core.html#expressions[Spring Expression Language] ，可以将 `SpringELScriptEvaluatorFactory` 定义为:
+
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/SpringELScriptEvaluatorFactory.java[tags=include]
+----
+====
+
+这个工厂允许在 `ScriptAssert` 和 `ParameterScriptAssert` 约束中使用 Spring 表达式语言:
+
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/CustomScriptEvaluatorFactoryForSpringELTest.java[tags=include]
+----
+====
+
+[[section-configuring-validator]]
+=== 配置Validator
+
+在使用已配置的验证器工厂时，有时需要将不同的配置应用于单个 `Validator` 实例。<<example-using-context>>  展示了如何通过调用 `ValidatorFactory#usingContext()` 来实现这一点。
+
+[[example-using-context]]
+.配置 `Validator` 实例通过 `usingContext()`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter09/BootstrappingTest.java[tags=usingContext]
+----
+====

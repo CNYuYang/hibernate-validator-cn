@@ -1,0 +1,256 @@
+[[validator-gettingstarted]]
+== 快速开始
+
+本章将向您展示如何开始使用Hibernate Validator，它是Jakarta Bean Validation的参考实现(reference implementation RI)。您需要准备：
+
+* JDK 8
+* http://maven.apache.org/[Apache Maven]
+* 互联网 (Maven需要下载相关依赖库)
+
+[[validator-gettingstarted-createproject]]
+=== 创建项目
+
+为了在Maven项目中使用Hibernate Validator，只需将以下依赖项添加到 __pom.xml__ 中:
+
+.Hibernate Validator Maven 依赖项
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<dependency>
+    <groupId>org.hibernate.validator</groupId>
+    <artifactId>hibernate-validator</artifactId>
+    <version>{hvVersion}</version>
+</dependency>
+----
+====
+
+这样也会同时引入依赖 Jakarta Bean Validation API (`jakarta.validation:jakarta.validation-api:{bvVersion}`)。 
+
+#( 译者注：hibernate-validator 依赖了 jakarta.validation-api ，所以引入 hibernate-validator 同时也会引入 jakarta.validation-api )#
+
+[[validator-gettingstarted-uel]]
+==== 统一的EL表达式
+
+Hibernate Validator 需要一个 https://projects.eclipse.org/projects/ee4j.el[Jakarta Expression Language] 的实现，能够使用表达式动态计算校验结果 ( <<section-message-interpolation>>)。当您的应用程序在 Java EE 容器(如 JOSS AS )中运行时，相关容器已经提供了EL实现。 但是，在Java SE环境中，您必须将一个实现作为依赖项添加到您的POM文件。例如，您可以添加以下依赖项来使用 Jakarta EL https://github.com/eclipse-ee4j/el-ri[reference
+implementation]引用:
+
+.Maven引入EL的实现
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<dependency>
+    <groupId>org.glassfish</groupId>
+    <artifactId>jakarta.el</artifactId>
+    <version>{jakartaElVersion}</version>
+</dependency>
+----
+====
+
+[TIP]
+====
+对于那些不能提供EL的环境，Hibernate Validator 提供了一个<<non-el-message-interpolator>>。但是，使用这个插值器不符合 Jakarta Bean Validation规范。
+====
+
+[[section-getting-started-cdi]]
+==== CDI
+
+Jakarta Bean Validation 定义了与 CDI
+(https://projects.eclipse.org/projects/ee4j.cdi[Contexts and Dependency Injection for Jakarta EE])的集成点。
+如果你的应用运行在一个没有提供这种集成的环境中，你可以使用 Hibernate Validator CDI 可移植扩展，方法是在你的 POM 中添加下面的 Maven 依赖项:
+
+.Hibernate Validator CDI 可移植扩展 Maven 依赖项
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<dependency>
+    <groupId>org.hibernate.validator</groupId>
+    <artifactId>hibernate-validator-cdi</artifactId>
+    <version>{hvVersion}</version>
+</dependency>
+----
+====
+
+注意，在 Java EE 应用程序服务器上运行的应用程序通常不需要添加此依赖项。您可以在<<section-integration-with-cdi>>中了解关于 Jakarta Bean Validation和 CDI 集成的更多信息。
+
+[[section-getting-started-security-manager]]
+==== 与安全管理器一起运行
+
+Hibernate Validator 支持在启用安全管理器({javaTechnotesBaseUrl}/guides/security/index.html[security manager] )的情况下运行。为此，您必须为 Hibernate Validator、 Jakarta Bean Validation API、 Classmate 和 JBoss Logging 的代码库以及调用 Jakarta Bean Validation 的代码库分配多个权限。 {javaTechnotesBaseUrl}/guides/security/PolicyFiles.html[policy file] 展示了如何通过由 Java 默认策略实现处理的策略文件来实现这一点:
+
+.使用 Hibernate Validator 和安全管理器的策略文件
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+grant codeBase "file:path/to/hibernate-validator-{hvVersion}.jar" {
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+
+    permission org.hibernate.validator.HibernateValidatorPermission "accessPrivateMembers";
+
+    // Only needed when working with XML descriptors (validation.xml or XML constraint mappings)
+    permission java.util.PropertyPermission "mapAnyUriToUri", "read";
+};
+
+grant codeBase "file:path/to/jakarta.validation-api-{bvVersion}.jar" {
+    permission java.io.FilePermission "path/to/hibernate-validator-{hvVersion}.jar", "read";
+};
+
+grant codeBase "file:path/to/jboss-logging-{jbossLoggingVersion}.jar" {
+    permission java.util.PropertyPermission "org.jboss.logging.provider", "read";
+    permission java.util.PropertyPermission "org.jboss.logging.locale", "read";
+};
+
+grant codeBase "file:path/to/classmate-{classmateVersion}.jar" {
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+};
+
+grant codeBase "file:path/to/validation-caller-x.y.z.jar" {
+    permission org.hibernate.validator.HibernateValidatorPermission "accessPrivateMembers";
+};
+----
+====
+
+==== 在 WildFly 中更新 Hibernate 校验器
+
+http://wildfly.org/[WildFly 应用程序服务器]包含开箱即用的 Hibernate Validator。为了将 Jakarta Bean Validation API 和 Hibernate Validator 的服务器模块更新为最新和最大的模块，可以使用 WildFly 的补丁机制。
+
+你可以从 http://sourceforge.net/projects/hibernate/files/hibernate-validator[SourceForge] 或者 使用以下依赖项从 Maven Central 下载修补程序文件:
+
+.WildFly {wildflyVersion} 补丁文件的 Maven 依赖项
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<dependency>
+    <groupId>org.hibernate.validator</groupId>
+    <artifactId>hibernate-validator-modules</artifactId>
+    <version>{hvVersion}</version>
+    <classifier>wildfly-{wildflyVersion}-patch</classifier>
+    <type>zip</type>
+</dependency>
+----
+====
+
+我们还为 WildFly 提供了一个补丁:
+
+.Maven 对 WildFly 补丁文件的依赖关系
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<dependency>
+    <groupId>org.hibernate.validator</groupId>
+    <artifactId>hibernate-validator-modules</artifactId>
+    <version>{hvVersion}</version>
+    <classifier>wildfly-patch</classifier>
+    <type>zip</type>
+</dependency>
+----
+====
+
+下载了补丁文件后，你可以通过运行以下命令将它应用到 WildFly:
+
+.应用 WildFly 补丁
+====
+[source]
+[subs="verbatim,attributes"]
+----
+$JBOSS_HOME/bin/jboss-cli.sh patch apply hibernate-validator-modules-{hvVersion}-wildfly-22.0.0.Final-patch.zip
+----
+====
+
+如果你想撤销补丁并返回到服务器最初提供的 Hibernate Validator 版本，请运行以下命令:
+
+.回滚 WildFly 补丁
+====
+[source]
+[subs="verbatim,attributes"]
+----
+$JBOSS_HOME/bin/jboss-cli.sh patch rollback --reset-configuration=true
+----
+====
+
+您可以在 https://developer.jboss.org/wiki/SingleInstallationPatching/[这里] 和 http://www.mastertheboss.com/jboss-server/jboss-configuration/managing-wildfly-and-eap-patches[这里]了解有关 WildFly 补丁基础信息。
+
+[[validator-gettingstarted-java9]]
+====  在 Java 9上运行
+
+从 Hibernate Validator {hvVersion}开始。最后，对 Java 9和 Java 平台模块系统(JPMS)的支持是实验性的。目前还没有提供 JPMS 模块描述符，但 Hibernate Validator 可以用作自动模块。
+
+这些是使用 `Automatic-Module-Name` 头声明的模块名称:
+
+* Jakarta Bean Validation API: `java.validation`
+* Hibernate Validator core: `org.hibernate.validator`
+* Hibernate Validator CDI extension: `org.hibernate.validator.cdi`
+* Hibernate Validator test utilities: `org.hibernate.validator.testutils`
+* Hibernate Validator annotation processor: `org.hibernate.validator.annotationprocessor`
+
+这些模块名称是暂时的，在将来的版本中提供真正的模块描述符时可能会改变。
+
+[[validator-gettingstarted-createmodel]]
+=== 使用约束
+
+让我们直接深入到一个示例中，看看如何使用约束注解。
+
+[[example-class-car]]
+.使用约束注解的Car类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter01/Car.java[]
+----
+====
+
+`@NotNull`, `@Size` 和 `@Min` 注解用于声明应该应用于 Car 实例字段的校验:
+
+
+*  `manufacturer` 字段必须永远不能为 `null`
+*  `licensePlate` 字段不能为 `null` ，并且必须在2到14个字符之间
+*  `seatCount` 字段必须至少是2
+
+[TIP]
+====
+您可以在 GitHub 上的 Hibernate Validator 
+https://github.com/hibernate/hibernate-validator/tree/master/documentation/src/test[源代码库]
+中找到本参考指南中所有示例的完整源代码。
+====
+
+=== 校验约束
+
+若要对这些约束执行校验，请使用 `Validator` 实例。让我们看一下 `Car` 的单元测试:
+
+.CarTest展示校验的示例
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter01/CarTest.java[]
+----
+====
+
+#(译者注：大家在跑单元测试的时候可能会出错，因为做了本地化的处理。错误信息为中文字符与单元测试中的英文不匹配。后面的案例都可能出现类似情况，不再赘述。)#
+
+在 `setUp()` 方法中，使用 `ValidatorFactory` 获取一个 `Validator` 对象。 `Validator`
+实例是线程安全的，可以多次重用。因此，它可以安全地存储在一个静态变量中，并用于测试方法，以校验不同的 `Car` 实例.
+
+`validate()` 方法返回 `ConstraintViolation` 对象的 `Set` 集合, 您可以对其进行迭代操作，以查看发生了哪些校验错误。前三个测试方法显示了一些预期的违反约束的情况:
+
+
+* 在 `manufacturerIsNull()` 方法中，违反了 `manufacturer` 字段的 `@NotNull` 约束
+* 在 `licensePlateTooShort()` 方法中，违反了 `licensePlate` 字段的 `@Size` 约束 
+* 在 `seatCountTooLow()` 方法中，违反了 `seatCount` 字段的 `@Min` 约束
+
+如果对象成功校验，`validate()` 方法将返回一个空集，正如您在 `carIsValid()` 方法中看到的那样。
+
+注意，只使用 Bean Validation API中 `jakarta.validation` 里面的类。没有直接引用来自 Hibernate Validator 的类，可以增强代码的可移植性。
+
+[[validator-gettingstarted-whatsnext]]
+=== 接下来的是？
+
+以上是对 Hibernate Validator 和 Jakarta Bean Validation 的5分钟快速入门。继续探索代码示例或者进一步阅读 <<validator-further-reading>>。
+
+要了解关于 bean 和属性校验的更多信息，请继续阅读 <<chapter-bean-constraints>>。如果您对使用 Jakarta Bean Validation 来校验方法前置和后置条件感兴趣，请参阅<<chapter-method-constraints>> 。如果您的应用程序有特定的校验要求，请参阅<<validator-customconstraints>>。

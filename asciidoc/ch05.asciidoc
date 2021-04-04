@@ -1,0 +1,272 @@
+[[chapter-groups]]
+== 分组约束
+
+在前面几章中讨论的 `Validator` 和 `ExecutableValidator` 中的所有校验方法都有可变长参数 `groups` 。到目前为止，我们一直忽略这个参数，但是现在是时候仔细研究一下了。
+
+=== 请求分组
+
+Groups(分组)允许你在校验的时候限制校验范围，校验分组的一个使用场景是UI导航，其中每个步骤中只有指定的约束子集而得到校验。目标分组作为参数传递给校验方法。
+
+让我们来看接下来的这个例子， <<example-person>> 中的 `Person` 类的 `name` 有一个 `@NotNull` 注解约束。如果没有特别指定分组，那么会分组为默认的 `jakarta.validation.groups.Default` 。
+
+[NOTE]
+====
+当校验一个或多个分组的时候，也没有显示的指定分组。那么会被分类至 `jakarta.validation.groups.Default` 。
+====
+
+[[example-person]]
+.实体类 `Person`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/Person.java[tags=include]
+----
+====
+
+<<example-driver>> 中的 `Driver` 类继承至 `Person` 类，同时添加了 `age` 和 `hasDrivingLicense` 两个字段。司机必须年满18岁(`@Min(18)`)并持有驾驶执照( `@AssertTrue` ) ， 在这些属性上定义的约束都属于 `DriverChecks` 分组，它只是一个简单的标记接口。
+
+[TIP]
+====
+使用接口使得组的使用类型安全，并且允许轻松地进行重构。这也意味着组可以通过类继承彼此继承。见 <<section-group-inheritance>>
+====
+
+[[example-driver]]
+.Driver类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/Driver.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/DriverChecks.java[]
+----
+====
+
+最后 `Car` 类(<<example-car>>) 具有一些约束，这些约束是默认组的一部分，但是 `passedVehicleInspection` 字段的 `@AssertTrue` 约束注解属于 `CarChecks` 分组，它表示一辆汽车是否通过了道路测试。
+
+[[example-car]]
+.Car类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/Car.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/CarChecks.java[]
+----
+====
+
+总的来说，示例中使用了三个不同的组:
+
+* `Person.name`, `Car.manufacturer`, `Car.licensePlate` 和 `Car.seatCount`
+字段属于 `Default` 分组
+* `Driver.age` 和 `Driver.hasDrivingLicense` 字段属于 `DriverChecks` 分组
+* `Car.passedVehicleInspection` 字段属于 `CarChecks` 分组
+
+<<example-drive-away>> 展示了如何将不同的组合传递给 `Validator#validate()`
+方法，从而导致不同的校验结果。
+
+[[example-drive-away]]
+.使用校验分组
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/GroupTest.java[tags=driveAway]
+----
+====
+
+<<example-drive-away>> 中第一次调用 `validate()` 方法是在没有显式指定分组的情况下完成的。没有验证错误，即使 `passedVehicleInspection` 的默认值是 `false` ，因为在该属性上定义的约束不属于默认组。
+
+第二次校验的是 `CarChecks` 分组，会校验失败除非汽车通过车辆检查(passedVehicleInspection = true)。为汽车添加一个驾驶员，会再次导致校验失败，因为驾驶员尚未通过驾驶考试，只有将 `passedDrivingTest` 设置为 `true` 后，对 `DriverChecks` 的分组才会通过。
+
+最后一次调用 `validate()` 表示所有定义的分组的约束都通过校验。
+
+[[section-group-inheritance]]
+=== 分组继承
+
+在 <<example-drive-away>>, 我们需要为每个校验分组调用一次 `validate()` ， 或者一次性指定他们所有。
+
+在某些情况下，您可能希望定义一组包含另一组的约束。您可以使用分组继承来实现这一点。
+
+在 <<example-supercar>>中，我们定义了一个 `SuperCar` 类和一个 `RaceCarChecks` 分组，`RaceCarChecks` 分组继承至 `Default` 分组。 `SuperCar` (超级跑车)必须配备安全带才能参加比赛。
+
+[[example-supercar]]
+.SuperCar类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupinheritance/SuperCar.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupinheritance/RaceCarChecks.java[]
+----
+====
+
+在下面的例子中，我们将校验 `SuperCar` 在只有一个座位且没有安全带，是否是合格的汽车？是否是合格的竞速车辆？
+
+[[example-group-inheritance]]
+.使用分组继承
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/GroupTest.java[tags=testGroupInheritance]
+----
+====
+
+在第一次调用 `validate()` 时，我们不指定分组。有一个验证错误，因为汽车必须至少有一个座位。它是来自 `Default` 分组的约束。
+
+在第二次调用中，我们只指定 `RaceCarChecks` 分组。有两个验证错误: 一个是 `Default` 分组的座位缺少，另一个是 `RaceCarChecks` 分组没有安全带。
+
+[[section-defining-group-sequences]]
+=== 定义分组序列
+
+默认情况下，不管约束属于哪个分组，约束都不按特定顺序进行计算。然而，在某些情况下，控制校验约束的顺序是有很用的。
+
+在 <<example-drive-away>> 中。要求在检查汽车的是否是赛车之前，首先要通过所有默认的汽车约束。最后，在开车离开之前，应该检查实际的驾驶员是否满足约束。
+
+为了实现这样的验证顺序，您只需定义一个接口并使用 `@GroupSequence` 对其进行注解，定义必须验证组的顺序(参见 <<example-defining-group-sequence>>)。 如果序列组中有一个约束校验失败，序列组中剩下的约束都不能算验证通过。
+
+[[example-defining-group-sequence]]
+.定义一个分组序列
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/OrderedChecks.java[]
+----
+====
+
+[WARNING]
+====
+定义序列的组和组成序列的组不能直接或间接地通过级联序列定义或组继承参与循环依赖。如果计算包含这种循环的组，则会引发 `GroupDefinitionException` 。
+====
+
+然后您可以在<<example-group-sequence>>使用刚刚定义的分组序列。
+
+[[example-group-sequence]]
+.使用分组序列
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/GroupTest.java[tags=testOrderedChecks]
+----
+====
+
+[[section-default-group-class]]
+=== 重新定义默认组序列
+
+==== `@GroupSequence`
+
+除了定义分组序列, `@GroupSequence` 分组还允许为给定的类重新定义默认组。为此，只需将 `@GroupSequence` 注释添加到类中，并指定在注释中用 `Default` 替换该类的组的顺序。
+
+<<example-rental-car>> 介绍将 `RentalCar` 重新定义默认分组。
+
+[[example-rental-car]]
+.为 `RentalCar` 重新定义默认分组
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/RentalCar.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/RentalChecks.java[]
+----
+====
+
+<<example-testCarIsRented>> 当做了上述定义后，当你校验 `Default` 分组时，会同时 `RentalCar` 校验中 `RentalChecks`, `CarChecks` 分组的约束 。
+
+[[example-testCarIsRented]]
+.验证具有重定义的默认组的对象
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/GroupTest.java[tags=carIsRented]
+----
+====
+
+[NOTE]
+====
+因为分组和分组序列定义中不能有循环依赖项，所以不能将 Default 添加到为类重新定义 Default 的序列中。相反，必须添加类本身。
+====
+
+`Default` 分组序列重写对于在其上定义的类是local(本地)的，不会传播到关联的对象。对于本例，这意味着将 `DriverChecks` 添加到 `RentalCar` 的默认组序列中，而不会对其他类产生任何效果。并且只有 `Default` 分组关联了驾驶员相关注解。
+
+请注意，您可以通过声明组转换规则来控制传播的组( 
+<<section-group-conversion>>)。
+
+==== `@GroupSequenceProvider`
+
+除了通过 `@GroupSequence` 静态重新定义默认组序列之外，Hibernate Validator 还提供了一个 SPI，用于根据对象状态动态重新定义默认组序列。
+
+为此，需要实现接口 `DefaultGroupSequenceProvider` ，并通过 `@GroupSequenceProvider` 注解向目标类注册该实现。例如，在租车场景中，您可以动态地添加   `CarChecks` ，如<<example-implementing-using-default-group-sequence-provider>>
+
+[[example-implementing-using-default-group-sequence-provider]]
+.实现和使用默认的组序列提供程序
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupsequenceprovider/RentalCarGroupSequenceProvider.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupsequenceprovider/RentalCar.java[tags=include]
+----
+====
+
+[[section-group-conversion]]
+=== 分组转化
+
+如果你想校验汽车相关检查和驾驶员检查一起进行怎么办？当然，您可以显式地将所需的组传递给 validate 方法，但是如果您希望将这些验证作为 `Default` 分组验证的一部分进行呢？这里使用了 `@ConvertGroup` ，它允许您在级联验证期间使用与最初请求的组不同的组。
+
+让我们看看 <<example-group-conversion-dedault-to-driver-checks>>。这里 `@GroupSequence({
+CarChecks.class, Car.class })` 是修改 `Default` 分组。
+(see <<section-default-group-class>>). 这里的 `@ConvertGroup(from = Default.class, to =
+DriverChecks.class)` 它确保在对汽车程序关联进行级联验证期间将 `Default` 分组转化为 `DriverChecks` 分组。
+
+[[example-group-conversion-dedault-to-driver-checks]]
+.`@ConvertGroup` 用例
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupconversion/Driver.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupconversion/Car.java[tags=include]
+----
+====
+
+<<example-group-conversion-test>> 的校验结果是成功的。即使 `hasDrivingLicense` 的约束属于 `DriverChecks` 分组，并且 `validate()` 方法只校验 `Default` 分组。
+
+[[example-group-conversion-test]]
+.测试用例 `@ConvertGroup`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter05/groupconversion/GroupConversionTest.java[tags=validateDriverChecksTogetherWithCarChecks]
+----
+====
+
+您可以在任何使用 `@Valid` 注解的地方，使用分组转化。即关联、方法和构造函数参数以及返回值。可以使用 `@ConvertGroup.List` 同时指定多种转化。
+
+不过，仅在下面的场景不适用:
+
+* `@ConvertGroup`  只能与 `@Valid` 结合使用。如果不使用，则引发 `ConstraintDeclarationException` 。
+
+* 在同一个元素上具有相同的 `from` 值的多个转换规则是不合法的。在这种情况下，将引发 `ConstraintDeclarationException` 。
+
+* `from` 属性不能引用分组序列。在这种情况下会引发 `ConstraintDeclarationException` 。
+
+[NOTE]
+====
+规则不是递归执行的。使用第一个匹配转换规则，并忽略后续规则。例如，如果一组 @ConvertGroup 声明 a 到 b，b 到 c，组 a 将被转换为 b 而不是 c。 
+====

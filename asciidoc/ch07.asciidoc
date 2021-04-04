@@ -1,0 +1,276 @@
+[[chapter-valueextraction]]
+== 值提取
+
+值提取是从集合中提取对象以便对其进行验证的过程。
+
+它用于处理<<container-element-constraints,集合元素约束>>和<<example-cascaded-validation-list,集合中的级联校验>>。
+
+[[section-valueextraction-builtinvalueextractors]]
+=== 内置值提取器
+
+Hibernate Validator 为常用的 Java 容器类型提供了内置的值提取器，因此，除非您使用自己的自定义容器类型(或外部库，如 https://github.com/google/guava[Guava] 的 `Multimap` ) ，否则不应该添加自己的值提取器。
+
+所有以下容器类型都有内置的值提取器:
+
+ * `java.util.Iterable`;
+ * `java.util.List`;
+ * `java.util.Map`: for keys and values;
+ * `java.util.Optional`, `java.util.OptionalInt`, `java.util.OptionalLong` and `java.util.OptionalDouble`;
+ * {javafxDocsUrl}[JavaFX]'s `ObservableValue` (参见 <<section-valueextraction-javafx>> ).
+
+在 {bvSpecUrl}#valueextractordefinition-builtinvalueextractors[Jakarta Bean Validation specification] 中可以找到内置值提取器的完整列表，并包含它们行为的所有细节。
+
+=== 实现一个 `ValueExtractor`
+
+要从自定义容器中提取值，需要实现 `ValueExtractor` 。
+
+[NOTE]
+====
+实现一个 `ValueExtractor` 是不够的，您还需要注册它。详情请参阅 <<section-valueextraction-registeringvalueextractor>>
+====
+
+`ValueExtractor` 是一个非常简单的 API，因为值提取器的唯一目的是向 `ValueReceiver` 提供提取的值。
+
+例如，让我们考虑 Guava's `Optional`。这是一个简单的示例，因为我们可以参考 `java.util.Optional` 编写Guava的值提取器:
+
+
+[[example-valueextraction-guava-optional-valueextractor]]
+.实现Guava's `Optional` 的 `ValueExtractor` 
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/valueextractor/OptionalValueExtractor.java[tags=include]
+----
+====
+
+以下是对上面行为一些解释:
+
+* `@ExtractedValue` 注解标注使用约束的变量类型:即需要校验的参数类型
+* 我们使用receiver的 `value()` 方法来获取 `Optional` 包装里的值
+* 我们不希望属性违反约束时添加新的节点信息。所以在调用 `value()` 方法，我们传入了 `null` 作为节点名称。
+
+一个更有趣的例子是 Guava 的 `Multimap` : 我们希望能够验证这个容器类型的键和值。
+
+让我们首先考虑值的情况，需要一个值提取器提取它们:
+
+[[example-valueextraction-guava-multimap-value-valueextractor]]
+.A `ValueExtractor` for `Multimap` values
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/valueextractor/MultimapValueValueExtractor.java[tags=include]
+----
+====
+
+它用于验证 `Multimap` 值的约束:
+
+.对 `Multimap` 的值进行约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=multimapValues]
+----
+====
+
+另一个值提取器需要能够对 `Multimap` 的键进行约束:
+
+[[example-valueextraction-guava-multimap-key-valueextractor]]
+.A `ValueExtractor` for `Multimap` keys
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/valueextractor/MultimapKeyValueExtractor.java[tags=include]
+----
+====
+
+一旦这两个值提取器被注册，你可以声明 `Multimap` 的键和值的约束:
+
+.对 `Multimap` 的键和值进行约束
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=multimapKeysAndValues]
+----
+====
+
+这两个值提取器之间的差异乍一看可能有点微妙，所以让我们来解释一下:
+
+ * `@ExtractedValue` 注释标记了需要提取目标类型参数(本例中为 `K` 或 `V` )。
+ * 我们使用不同的节点名称 (`<multimap key>` vs. `<multimap value>`).
+ * 在第一种情况下，我们将values传递给receiver (
+   `keyedValue()` 方法的第三个参数), 在另一种情况下，我们传递键。
+
+根据您的容器类型，您应该选择最适合的 `ValueReceiver` 方法:
+
+`value()`::
+    对于一个简单的包装容器 - 它是用于 ``Optional``s
+`iterableValue()`::
+    对于可迭代的容器 - 它是用于 ``Set``s
+`indexedValue()`::
+    用于包含索引值的容器 - 它是用于 ``List``s
+`keyedValue()`::
+    对于包含键值的容器 - 它是用于 ``Map``s.
+    它同时用于键和值。对于校验键的情况，键也作为验证值传递。
+
+对于所有这些方法，您需要传递一个节点名称: 它是添加到违反约束的属性路径的节点中包含的名称。如前所述，如果节点名为 `null` ，则不会向属性路径添加任何节点: 对于类似于 `Optional` 的纯包装器类型来说，它非常有用。
+
+选择使用的方法非常重要，因为它将上下文信息添加到违反约束的属性路径中，例如索引或验证值的键。
+
+=== 非通用容器
+
+您可能已经注意到，到目前为止，我们只为泛型容器实现值提取器。
+
+Hibernate Validator 还支持非通用容器的值提取。
+
+让我们以 `java.util.OptionalInt` 为例，它将一个原生类型 `int` 的 `Optional` 包装类。
+
+对 `OptionalInt` 的值提取器的第一次尝试如下:
+
+[[example-valueextraction-optionalint-valueextractor]]
+.A `ValueExtractor` for `OptionalInt`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/nongeneric/OptionalIntValueExtractor.java[tags=include]
+----
+====
+
+对于非泛型容器来说，有一个明显的缺陷: 我们没有类型参数。它有两个后果:
+
+ * 我们不能使用类型参数来确定验证值的类型;
+ * 我们不能在类型参数上添加约束(例如 `Container<@NotNull String>`).
+
+首先，我们需要一种方法来告诉 Hibernate Validator 从 `OptionalInt` 中提取的值是 `Integer` 类型的。正如您在上面的示例中看到的, `@ExtractedValue` 注解的 `type` 属性允许向验证引擎提供此信息。
+
+然后，您必须告诉验证引擎，要添加到 `OptionalInt` 属性的 `Min` 约束与包装值有关，而与包装器无关。
+
+Jakarta Bean Validation 为这种情况提供了 `Unwrapping.Unwrap` 有效负载:
+
+[[example-valueextraction-optionalint-unwrapping]]
+.使用 `Unwrapping.Unwrap` 有效载荷
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=optionalIntUnwrap]
+----
+====
+
+如果我们退后一步，我们想要添加到 `OptionalInt` 属性的大部分约束(如果不是全部的话)将应用于包装的值，因此有一种方法使它成为默认值将是很好的。
+
+这正是 `@UnwrapByDefault` 注释的用途:
+
+[[example-valueextraction-optionalint-unwrapbydefault-valueextractor]]
+.A `ValueExtractor` for `OptionalInt` marked with `@UnwrapByDefault`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/nongeneric/UnwrapByDefaultOptionalIntValueExtractor.java[tags=include]
+----
+====
+
+当为 `OptionalInt` 声明这个值提取器时，约束注释默认应用于被包装的值:
+
+[[example-valueextraction-optionalint-implicitunwrapping]]
+.隐式展开 `@UnwrapByDefault`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=optionalInt]
+----
+====
+
+注意，您仍然可以使用 `Unwrapping.Skip` 有效负载为包装器本身声明一个注释:
+
+[[example-valueextraction-optionalint-avoid-implicitunwrapping]]
+.Avoid implicit unwrapping with `Unwrapping.Skip`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=optionalIntSkip]
+----
+====
+
+[NOTE]
+====
+`OptionalInt` 的 `@UnwrapByDefault` 值提取器是内置值提取器的一部分: 不需要额外添加。
+====
+
+[[section-valueextraction-javafx]]
+=== JavaFX 值提取器
+
+JavaFX 中的 Bean 属性通常不是像 `String` 或 `int` 这样的简单数据类型，而是包装在 `Property` 类型中，这使得它们可以被observable(监听变化)，用于数据绑定等等。
+
+因此，值提取需要能够对已包装的值应用约束。
+
+JavaFX 的 `ObservableValue` 值提取器需要标注 `@UnwrapByDefault`。
+因此，容器上承载的约束默认以包装后的值为目标。
+
+因此，您可以像下面这样约束 `StringProperty` :
+
+.约束 `StringProperty`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=stringProperty]
+----
+====
+
+或者约束 `LongProperty`:
+
+.约束 `LongProperty`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=longProperty]
+----
+====
+
+可迭代的属性类型，即 `ReadOnlyListProperty` 、 `ListProperty`  及其 `Set` 和 `Map` 副本是泛型的，因此可以使用容器元素约束。因此，它们具有不用 `@UnwrapByDefault` 标记的特定值提取器。
+
+可以像约束 `List` 那样约束 `ReadOnlyListProperty` : 
+
+.约束 `ReadOnlyListProperty`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter07/Container.java[tags=listProperty]
+----
+====
+
+[[section-valueextraction-registeringvalueextractor]]
+=== 注册一个 `ValueExtractor`
+
+Hibernate Validator 不会自动检测classpath中的值提取器，因此必须注册它们。
+
+有几种注册值提取器的方法(按优先级顺序递增) :
+
+由验证引擎本身提供::
+    参见 <<section-valueextraction-builtinvalueextractors>>.
+
+通过 Java 服务加载器机制::
+    文件 `META-INF/services/jakarta.validation.valueextraction.ValueExtractor`
+    必须以一个或多个值提取器实现的完全限定名作为其内容提供，每个都在单独的一行中。
+
+In the `META-INF/validation.xml` file::
+    有关如何在 XML 配置中注册值提取器的更多信息， 参见 <<section-configuration-validation-xml>> 。
+
+By calling `Configuration#addValueExtractor(ValueExtractor<?>)`::
+    参见 <<section-bootstrapping-valueextractors>>
+
+By invoking `ValidatorContext#addValueExtractor(ValueExtractor<?>)`::
+    它只声明这个 Validator 实例的值提取器。 
+
+对于给定的类型和类型参数，以较高优先级指定的值提取器会覆盖以较低优先级指定的相同类型和类型参数的任何其他提取器。
+
+=== 分辨率算法
+
+在大多数情况下，你不必担心这个问题，但是如果你覆盖了现有的值提取器，你可以在 Jakarta Bean Validation 规范中找到关于值提取器解析算法的详细描述:
+
+ * for {bvSpecUrl}#constraintdeclarationvalidationprocess-validationroutine-valueextractorresolution-algorithm-constraints[container element constraints],
+ * for {bvSpecUrl}#constraintdeclarationvalidationprocess-validationroutine-valueextractorresolution-algorithm-cascaded[cascaded validation],
+ * and for {bvSpecUrl}#constraintdeclarationvalidationprocess-validationroutine-valueextractorresolution-implicitunwrapping[implicit unwrapping].
+
+记住一件重要的事情:
+
+ * 对于容器元素约束，声明的类型用于解析值提取器;
+ * 对于级联验证，它是运行时类型。

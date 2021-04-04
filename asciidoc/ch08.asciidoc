@@ -1,0 +1,117 @@
+[[chapter-xml-configuration]]
+== 通过 XML 配置
+
+到目前为止，我们已经使用了 Jakarta Bean Validation 的默认配置源，即注解。然而，也有两种 描述符允许通过 XML 进行配置。第一个描述符描述了一般的 Jakarta Bean Validation 行为，并作为 _META-INF/validation.xml_ 提供。第二个描述了约束声明，并通过注解与约束声明方法紧密匹配。让我们来看看这两种文档类型。
+
+[NOTE]
+====
+XSD文件可以参看 https://jakarta.ee/xml/ns/validation/
+====
+
+[[section-configuration-validation-xml]]
+===  配置 validator factory 通过 _validation.xml_
+
+启用 Hibernate Validator 的 XML 配置的关键是文件 _META-INF/validation.xml_ 。如果这个文件存在于classpath中，那么在创建 `ValidatorFactory` 时，它的配置将被应用。<<image-validation-configuration>> 显示了 _validation.xml_ 必须遵循的schema。
+
+[[image-validation-configuration]]
+.Validation configuration schema
+image::validation-configuration-2.0.png[validation-configuration-2.0.xsd]
+
+<<example-validation-xml>> 展示了 _validation.xml_ 的几个配置选项。所有设置都是可选的，同样的配置选项也可以通过 `jakarta.validation.Configuration` 以编程方式提供。实际上，XML 配置将被通过编程 API 显式指定的值覆盖。甚至可以通过 `Configuration#ignoreXmlConfiguration()` 完全忽略 XML 配置。另见<<section-configuring-validator-factory>>。
+
+[[example-validation-xml]]
+.`validation.xml`
+====
+[source, XML, indent=0]
+----
+include::{resourcesdir}/org/hibernate/validator/referenceguide/chapter08/validation.xml[]
+----
+====
+
+[WARNING]
+====
+classpath中必须只有一个名为 _META-INF/validation.xml_ 的文件。如果发现多于一个，则抛出异常。
+====
+
+`default-provider` 允许选择 Jakarta Bean Validation 实现程序。如果classpath中有多个实现程序，则此选项非常有用。`message-interpolator`, `traversable-resolver`,
+`constraint-validator-factory`, `parameter-name-provider` 和 `clock-provider` 的配置，分别用于指定 `MessageInterpolator`, `TraversableResolver`,
+`ConstraintValidatorFactory`, `ParameterNameProvider` 和 `ClockProvider` 接口的具体实现。有关这些接口的更多信息，请参阅 <<section-configuring-validator-factory>>  。
+
+`value-extractor` 允许声明附加的值提取器，以便从自定义容器类型中提取值或者覆盖内置的值提取器。有关如何实现 `jakarta.validation.valueextraction.ValueExtractor` ，参考 <<chapter-valueextraction>> 。
+
+`executable-validation` 和它的子节点定义了method约束的默认值。Jakarta Bean Validation 规范将构造函数和非 getter 方法定义为默认值。这个属性充当启用和关闭方法验证的全局切换(参见 <<chapter-method-constraints>>)。
+
+通过 `constraint-mapping` 配置，你需要列举出所有约束配置相关的 XML 文件。映射文件名必须使用其在classpath中的完全限定名指定。关于编写映射文件的详细信息可在下一节中找到。
+
+最后但并非最不重要的一点是，您可以通过 `property` 节点指定提供程序特定的属性。在这个例子中，我们使用了特定于 Hibernate Validator 的 `hibernate.validator.fail_fast` 属性(参见<<section-fail-fast>>)。
+
+[[section-mapping-xml-constraints]]
+=== 通过 `constraint-mappings` 映射约束
+
+可以通过文件来表达 XML 中的约束，这些文件遵循 <<image-mapping-configuration>> 。注意，只有在 _validation.xml_ 中通过约束映射列出这些映射文件时，才会处理它们。
+
+[[image-mapping-configuration]]
+.Validation mapping schema
+image::validation-mapping-2.0.png[validation-mapping-2.0.xsd]
+
+<<example-constraints-car>> 将 <<example-car>> 中的 +Car+ 和 <<example-rental-car>> 中的 +RentalCar+  类映射成 XML。 
+
+[[example-constraints-car]]
+.通过 XML 配置 Bean 约束
+====
+[source, XML, indent=0]
+----
+include::{resourcesdir}/org/hibernate/validator/referenceguide/chapter08/rental-car-mapping.xml[]
+----
+====
+
+<<example-rental-station-xml>> 展示了
+<<example-declaring-parameter-constraints>>, <<example-declaring-return-value-constraints>>
+和 <<example-specifying-constraint-target>> 使用的方法约束，也可以被XML文件表示。
+
+[[example-rental-station-xml]]
+.通过 XML 配置的方法约束
+====
+[source, XML, indent=0]
+----
+include::{resourcesdir}/org/hibernate/validator/referenceguide/chapter08/rental-station-mapping.xml[]
+----
+====
+
+XML 配置和采用编程注解的效果是一样的。出于这个原因，建议在程序中添加一些注解就足够了。 `default-package` 用于需要类名的所有字段。如果指定的类没有完全限定，则将使用已配置的默认包。然后，每个映射文件可以有几个 bean 节点，每个 bean 节点用指定的类名描述实体上的约束。
+
+[WARNING]
+====
+一个类只能跨所有配置文件配置一次。对于给定的约束注解，约束定义也是如此。它只能出现在一个映射文件中。如果违反了这些规则，就会抛出 `ValidationException` 异常。
+====
+
+将 `ignore-annotations` 设置为 `true` 意味着放置在配置 bean 上的约束注解将被忽略。此值的默认值为 true。`ignore-annotations` 也可用于 `class`, `fields`, `getter`, `constructor`, `method`, `parameter`, `cross-parameter` and `return-value`。如果未在这些级别上显式指定，则默认配置为true。
+
+`class`, `field`, `getter`, `container-element-type`, `constructor` 和 `method` 节点(以及他们的子节点参数)决定了约束放置在哪个级别。`valid` 节点用于启用级联验证和约束节点在相应级别上添加约束。每个约束定义必须通过 `annotation` 定义类。Jakarta Bean Validation 规范(`message`, `groups` and
+`payload`)所需的约束属性具有专用节点。所有其他特定于约束的属性都是使用元素节点配置的。
+
+[NOTE]
+====
+`container-element-type` 允许为容器元素定义级联验证行为和约束。在上面的例子中，您可以看到一个嵌套在 `Map` 值中的 `List` 上的嵌套容器元素约束的例子。 `type-argument-index` 用于精确地确定映射的类型参数与配置有关。如果类型只有一个类型参数(例如，示例中的 ``List``s ) ，则可以省略它。
+====
+
+`class` 节点还允许通过组序列节点重新配置默认的组序列(参见<<section-default-group-class>>)。示例中没有显示使用 `group-sequence` 来指定组转换(参见<<section-group-conversion>>)。该节点可用于 `field`,
+`getter`, `container-element-type`, `parameter` 和 `return-value`，并指定 `from` 和 `to` 属性以指定组。
+
+最后但并非最不重要的一点是，可以通过 `constraint-definition` 节点更改与给定约束关联的 `ConstraintValidator` 实例列表。注解属性表示被修改的约束注解。`validated-by` 元素表示与约束关联的 `ConstraintValidator` 实现的(有序的)列表。如果 `include-existing-validator` 设置为 `false` ，则会忽略约束注解上定义的验证器。如果设置为 `true` ，则 XML 中描述的约束验证器列表将连接到注解中指定的验证器列表。
+
+[TIP]
+====
+constraint-definition 的一个用例是更改 `@URL` 的默认约束定义。从历史上看，Hibernate Validator 针对此约束的默认约束验证器使用 `java.net.URL`  构造函数来验证 URL 是否有效。然而，也有一个纯粹基于正则表达式的版本，可以使用 XML 进行配置:
+
+.使用 XML 注册基于正则表达式的约束定义 `@URL`
+[source, XML]
+----
+<constraint-definition annotation="org.hibernate.validator.constraints.URL">
+  <validated-by include-existing-validators="false">
+    <value>org.hibernate.validator.constraintvalidators.RegexpURLValidator</value>
+  </validated-by>
+</constraint-definition>
+----
+====
+

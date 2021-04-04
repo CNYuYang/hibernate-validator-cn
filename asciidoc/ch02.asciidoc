@@ -1,0 +1,691 @@
+[[chapter-bean-constraints]]
+==  声明和校验 bean 约束
+
+在本章中，您将学习如何声明 (see <<section-declaring-bean-constraints>>) 以及
+校验 (see <<section-validating-bean-constraints>>) bean 约束。
+<<section-builtin-constraints>> 概述了 Hibernate Validator提供的所有内置约束。
+
+如果您对方法参数和返回值的约束校验感兴趣，请参阅 <<chapter-method-constraints>>.
+
+[[section-declaring-bean-constraints]]
+=== 声明 bean 约束
+
+Jakarta Bean Validation 中的约束通过 Java 注解表示。在本节中，您将了解如何使用这些注解增强对象模型。有四种类型的 bean 约束:
+
+* 字段约束
+* 属性约束
+* 集合元素约束
+* 类约束
+
+[NOTE]
+====
+并非所有的约束都可以放在所有这些级别上。事实上，Jakarta Bean Validation 定义的约束都不能放在类级别上。约束注解的元注解 `java.lang.annotation.Target` 表明该注解可以在哪些类型上使用。 请参见 <<validator-customconstraints>> 获取更多信息。
+====
+
+==== 字段级约束
+
+约束可以通过在字段上添加注解来表示。 <<example-field-level>> 显示了一个字段级别的配置例子:
+
+[[example-field-level]]
+.字段级约束
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/fieldlevel/Car.java[tags=include]
+----
+====
+
+当使用字段级约束时，就是使用字段的值作为校验的对象。这意味着校验引擎将直接访问实例中的变量，而不是通过调用属性访问器方法，即使存在属性访问器(Getter方法)。
+
+字段约束可以应用于任何访问类型(公共、私有等)的字段。但是，不支持对静态字段的约束。
+
+[TIP]
+====
+当校验字节码增强对象时，应该使用属性级约束，因为字节码增强库不能通过反射确定要访问的字段。
+====
+
+==== 属性级约束
+
+如果您的类遵循
+http://www.oracle.com/technetwork/articles/javaee/spec-136004.html[JavaBeans] 标准， 那么也可以对 bean 的属性而不是字段进行注解。
+<<example-property-level>> 使用与 <<example-field-level>> 相同的实体，但是使用了属性级别的约束。
+
+[[example-property-level]]
+.属性级约束
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/propertylevel/Car.java[tags=include]
+----
+====
+
+[NOTE]
+====
+属性的 getter 方法需要被使用注解，setter方法则不用。这样就可以约束没有 setter 方法的只读属性。
+====
+
+当使用属性级约束时，校验引擎通过属性访问器方法访问的值作为校验的对象。
+
+[TIP]
+====
+建议在一个类中对某个字段只使用字段 _或_ 属性注解。不建议重复使用字段 _和_ 附带的 getter 方法同时进行注解，因为这会导致对字段进行两次重复的校验。
+====
+
+[[container-element-constraints]]
+==== 集合元素约束
+
+可以直接在参数化类型的类型参数上指定约束: 这些约束称为集合元素约束。
+
+这要求在约束定义中通过 `@Target` 指定 `ElementType.TYPE_USE` 。在 Jakarta Bean Validation 2.0 中，Jakarta Bean Validation 规定的约束和 Hibernate Validator 特殊实现约束都指定 `ElementType.TYPE_USE` ，可以直接使用。
+
+Hibernate Validator 校验下列标准 Java 集合上指定的集合元素约束:
+
+ * `java.util.Iterable` 的实现 (例如： ``List``s， ``Set``s)，
+ * `java.util.Map` 的实现， 支持keys和values方法，
+ * `java.util.Optional`， `java.util.OptionalInt`， `java.util.OptionalDouble`， `java.util.OptionalLong`，
+ * JavaFX 中的 `javafx.beans.observable.ObservableValue` 各类实现
+
+它还支持自定义集合类型上使用集合元素约束(参见 <<chapter-valueextraction>> )。
+
+[NOTE]
+====
+在6之前的版本中，支持集合元素约束的子集。但在集合级别需要 @valid 注解来启用它们。从 Hibernate Validator 6开始就不再需要这个了。
+====
+
+我们将在下面提供两个示例，展示在不同 Java 集合类型上使用集合元素约束。
+
+在这些示例中， `@ValidPart` 是设置了 `TYPE_USE` 的自定义约束。
+
+===== `Iterable`
+
+在对 `Iterable` 类型参数应用约束时，Hibernate Validator 将校验其中的每个元素。 <<example-container-element-constraints-iterable>> 展示了对有一个元素的 Set 进行约束的示例。
+
+[[example-container-element-constraints-iterable]]
+.集合元素约束 `Set`
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/set/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/set/CarTest.java[tags=validateSetContainerElementConstraint]
+----
+====
+
+请注意，属性路径如何清楚地表明违规来自迭代器的元素。
+
+=====  `List`
+
+当对 `List` 类型参数校验约束时， Hibernate Validator 将校验每个元素。 <<example-container-element-constraints-list>> 展示了对有一个元素的 List 进行约束的示例。
+
+[[example-container-element-constraints-list]]
+.集合元素约束 `List`
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/list/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/list/CarTest.java[tags=validateListContainerElementConstraint]
+----
+====
+
+在这里，属性路径还包含无效元素的索引。
+
+===== `Map`
+
+集合元素约束也在映射键和值上进行校验。
+<<example-container-element-constraints-map>> 展示了一个 `Map` 的例子，对 key 和 value都进行校验。
+
+[[example-container-element-constraints-map]]
+.映射键和值上的集合元素约束
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/map/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/map/CarTest.java[tags=validateMapValueContainerElementConstraint]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/map/CarTest.java[tags=validateMapKeyContainerElementConstraint]
+----
+====
+
+校验产生的错误信息：
+
+ * 无效的元素 (在第二个示例中， key为 `null`)。
+ * 在第一个示例中， `<map value>` 不符合约束， 在第二个示例中，`<map key>` 不符合约束。
+ * 在第二个示例中，您可能已经注意到类型参数 `<k>` 的出现，稍后将详细讨论。
+
+===== `java.util.Optional`
+
+当对 `Optional`  参数应用约束时， Hibernate Validator 将自动打开类型并校验内部值。<<example-container-element-constraints-optional>> 展示了一个对 `Optional` 进行约束的例子。
+
+[[example-container-element-constraints-optional]]
+.集合元素约束 Optional
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/optional/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/optional/CarTest.java[tags=validateOptionalContainerElementConstraint]
+----
+====
+
+在这里，属性路径只包含属性的名称，因为我们认为 `Optional` 是一个“透明”集合。
+
+===== 使用自定义集合类型
+
+集合元素约束也可以用于自定义集合。
+
+必须为自定义类型注册 `ValueExtractor` ，以允许检索要校验的值 (see <<chapter-valueextraction>> 以获得关于如何实现自己的 `ValueExtractor` 以及如何注册它的更多信息)。
+
+<<example-container-element-constraints-custom-container-type>> 展示了一个具有类型参数约束的自定义参数化类型的示例。
+
+[[example-container-element-constraints-custom-container-type]]
+.自定义集合类型上的集合元素约束
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/custom/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/custom/GearBox.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/custom/Gear.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/custom/GearBoxValueExtractor.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/custom/CarTest.java[tags=validateCustomContainerElementConstraint]
+----
+====
+
+===== 嵌套集合元素
+
+嵌套集合元素也支持约束。
+
+当校验 <<example-container-element-nested>> 中的 `Car` 类， 集合中的 `Part` 和 `Manufacturer` 都会执行 `@NotNull` 的校验。
+
+[[example-container-element-nested]]
+.嵌套集合元素的约束
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containerelement/nested/Car.java[tags=include]
+----
+====
+
+[[validator-usingvalidator-classlevel]]
+==== 类层面的约束
+
+最后但并非最不重要的一点是，还可以在类级别上放置约束。在这种情况下，校验的对象不是单个属性，而是完整的对象。如果校验依赖于对象的几个属性之间的相关性，则类级别约束非常有用。
+
+<<example-class-level>> 中的 `Car` 具有两个属性 `seatCount` 和 `passengers` 的约束，应确保乘客名单中的登记项不超过可用座位。为此，在类级别上添加 `@ValidPassengerCount` 约束。该约束的校验器可以访问完整的 `Car` 对象，允许比较座位和乘客的数量。
+
+请参阅 <<section-class-level-constraints>> ，详细了解如何实现这个自定义约束。
+
+[[example-class-level]]
+.类级别约束
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/classlevel/Car.java[tags=include]
+----
+====
+
+[[section-constraint-inheritance]]
+==== 约束继承
+
+当一个类实现一个接口或扩展另一个类时，在父类型上声明的所有约束注解以与在类本身上指定的约束相同的方式应用。为了让事情更清楚，让我们看看下面的例子:
+
+.约束继承
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/inheritance/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/inheritance/RentalCar.java[tags=include]
+----
+====
+
+这里 `RentalCar` 是 `Car` 的一个子类，并添加了属性 `rentalStation`。如果对
+`RentalCar` 的实例进行了校验， 不仅会校验 `rentalStation` 上的 `@NotNull` 注解， 还会计算来自父类的 `manufacturer` 约束。
+
+如果 `Car` 不是一个超类，而是由 `RentalCar` 实现的接口，情况也是如此。
+
+如果方法被重写，则约束注解将被聚合。因此，如果 `RentalCar` 覆盖了 `Car` 中的
+`getManufacturer()` 方法， 那么除了超类中的 `@NotNull` 约束之外，还将校验覆盖方法中注解的任何约束。
+
+[[section-object-graph-validation]]
+==== 对象图
+
+Jakarta Bean Validation API 不仅允许校验单个类实例，还允许校验完整的对象图(级联校验)。 要做到这一点，只需使用 `@Valid` 对表示对另一个对象的引用的字段或属性进行校验，如<<example-cascaded-validation>>。
+
+[[example-cascaded-validation]]
+.级联校验
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgraph/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgraph/Person.java[tags=include]
+----
+====
+
+如果校验了 `Car` ， 那么引用的 `Person` 对象也会被校验， 因为
+`driver` 字段使用了 `@Valid` 注解，。因此，如果引用的 `Person` 实例的 `name` 字段为 `null`，则 `Car` 的校验将失败。
+
+对象图的校验是递归的，也就是说，如果一个标记为级联校验的引用指向一个对象，该对象本身具有带 `@valid` 注解的属性，校验引擎也会跟踪这些引用。校验引擎将确保在级联校验期间不会发生无限循环，例如，如果两个对象彼此保持引用。
+
+注意，在级联校验过程中忽略 `null` 。
+
+作为约束，对象图校验也适用于集合元素。这意味着集合的任何类型参数都可以用 `@valid` 注解，这将导致在校验父对象时校验每个包含的元素。
+
+[NOTE]
+====
+嵌套集合元素也支持级联校验。
+====
+
+[[example-cascaded-validation-list]]
+.集合级联校验
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgraph/containerelement/Car.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgraph/containerelement/Part.java[tags=include]
+----
+
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgraph/containerelement/Manufacturer.java[tags=include]
+----
+====
+
+当校验 <<example-cascaded-validation-list>> 中的 `Car` 类的实例时 ， 以下情况 `ConstraintViolation` 将被创建：
+
+ * 如果 passengers 链表中的任何 `Person` 对象的name字段为 `null` ;
+ * 如果 map keys 中的 `Part` 对象具有 `null` 的 name字段;
+ * 如果 map values 中的 `Manufacturer` 对象具有 `null` 的 name字段;
+
+[NOTE]
+====
+在6之前的版本中，Hibernate Validator 支持对集合元素子集进行级联校验，并且在集合级别实现(例如，您可以使用 `@Valid private List<Person>` 对 `Person` 对象启用级联校验).
+
+这仍然受到支持，但不建议这样做。请使用集合元素级别 `@Valid` 注解，因为它更具表达性。
+
+====
+
+[[section-validating-bean-constraints]]
+=== 校验 bean 约束
+
+`Validator` 接口是 Jakarta Bean Validation中最重要的对象。下一节将展示如何获取  `Validator` 实例。之后，您将学习如何使用 `Validator` 接口定义的不同方法。
+
+[[section-obtaining-validator]]
+==== 获取 `Validator` 实例
+
+校验实例的第一步是获得 `Validator` 实例。为获取这个实例的需要通过 `Validation` 类和  `ValidatorFactory` 。最简单的方法是使用静态方法 `Validation # builddefaultvalidatorfactory()` :
+
+.`Validation#buildDefaultValidatorFactory()`
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation/ValidationTest.java[tags=setUpValidator]
+----
+====
+
+这将使用默认配置启动校验程序。请参阅 <<chapter-bootstrapping>> 以了解更多关于不同的 Bootstrapping 方法以及如何获得特定配置的 `Validator` 实例。
+
+==== Validator 方法
+
+`Validator` 接口定义了三个方法，可用于校验整个实体或仅校验实体的单个属性。
+
+这三个方法都返回一个 `Set<ConstraintViolation>`。如果校验成功，集合是空的。否则，将为每个违反的约束添加一个 `ConstraintViolation` 实例。
+
+所有的校验方法都有一个可变参数，可以用来指定在执行校验时应该考虑哪些校验组。如果未指定参数，则默认校验组( `jakarta.validation.groups.Default`) 。 分组将在 <<chapter-groups>> 中详细讨论 。
+
+===== `Validator#validate()`
+
+使用 `validate()` 方法对给定 bean 的所有约束执行校验。
+<<example-validator-validate>> 中的 `Car` 类来自
+<<example-property-level>> 该实例未能满足 `manufacturer` 字段上的 `@NotNull` 约束。因此，校验调用返回一个 `ConstraintViolation` 对象。
+
+[[example-validator-validate]]
+.使用 `Validator#validate()`
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation/ValidationTest.java[tags=validate]
+----
+====
+
+
+===== `Validator#validateProperty()`
+
+借助 `validateProperty()` 您可以校验给定对象的单个属性。
+
+.使用 `Validator#validateProperty()`
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation/ValidationTest.java[tags=validateProperty]
+----
+====
+
+
+===== `Validator#validateValue()`
+
+通过使用  `validateValue()` 方法，您可以检查某值对给定类的单个属性是否可以成功校验：
+
+.使用 `Validator#validateValue()`
+====
+[source， JAVA， indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation/ValidationTest.java[tags=validateValue]
+----
+====
+
+[NOTE]
+====
+`@Valid` 不在 `validateProperty()` 或 `validateValue()` 方法里生效。
+====
+
+
+例如，`Validator#validateProperty()` 用于将 Jakarta Bean Validation 集成到 JSF 2中(see <<section-presentation-layer>>) ，以便对输入到表单中的值执行校验，然后将它们传播到模型中。
+
+[[section-constraint-violation-methods]]
+
+==== `ConstraintViolation`
+
+===== `ConstraintViolation` 的方法
+
+现在是时候仔细研究一下什么是 `ConstraintViolation` 了。使用 `ConstraintViolation` 中不同的方法可以获取校验失败原因的许多有用信息。以下是这些方法的概述。
+列下的案例值引用了 <<example-validator-validate>>.
+
+`getMessage()`:: The interpolated error message
+	Example::: "must not be null"
+`getMessageTemplate()`:: The non-interpolated error message
+	Example::: "{... NotNull.message}"
+`getRootBean()`:: The root bean being validated
+	Example::: car
+`getRootBeanClass()`:: The class of the root bean being validated
+	Example::: `Car.class`
+`getLeafBean()`:: If a bean constraint， the bean instance the constraint is
+             applied on; if a property constraint， the bean instance hosting
+             the property the constraint is applied on
+	Example::: `car`
+`getPropertyPath()`:: The property path to the validated value from root bean
+	Example::: contains one node with kind `PROPERTY` and name "manufacturer"
+`getInvalidValue()`:: The value failing to pass the constraint
+	Example::: `null`
+`getConstraintDescriptor()`:: Constraint metadata reported to fail
+	Example::: descriptor for `@NotNull`
+
+===== 利用 property path
+
+要确定触发冲突的原因，需要利用 `getPropertyPath()` 方法的返回值。
+
+返回的 `Path` 由描述元素路径的 ``Node``s 组成
+
+关于 `Path` 的结构和各种类型的 ``Node``s 的更多信息可以在 Jakarta Bean Validation 规范中的 `ConstraintViolation` 章节找到.
+
+[[section-builtin-constraints]]
+=== 内置约束
+
+Hibernate Validator 包含一组常用的约束。这些都是 Jakarta Bean Validation 规范定义 (see <<validator-defineconstraints-spec>>)。
+此外，Hibernate Validator 还提供了在某些场景十分有用的自定义约束 (see
+<<validator-defineconstraints-hv-constraints>>)。
+
+[[validator-defineconstraints-spec]]
+==== Jakarta Bean Validation 约束
+
+下面是 Jakarta Bean Validation API 中指定的所有约束的列表。
+所有这些约束都适用于字段/属性级别，在 Jakarta Bean Validation规范中没有定义类级别约束。如果您使用 Hibernate ORM , 那么在为您的实体类创建 DDL 语句时会考虑到一些约束 (在下面的列表的 "Hibernate 元数据影响")。
+
+[NOTE]
+====
+Hibernate Validator 允许将一些约束应用于更多的数据类型，而不是  Jakarta Bean Validation 规范所要求的数据类型 (例如  `@Max` 可以应用于字符串)。但是，如果你在程序中依赖此特性，可能会影响应用程序在 Jakarta Bean Validation 提供程序之间的可移植性。
+====
+
+`@AssertFalse`:: 检查带注解的元素是否为false
+	支持的数据类型::: `Boolean`， `boolean`
+	Hibernate 元数据影响::: None
+
+`@AssertTrue`:: 检查带注解的元素是否为true
+	支持的数据类型::: `Boolean`， `boolean`
+	Hibernate 元数据影响::: None
+
+`@DecimalMax(value=， inclusive=)`:: 当 `inclusive` = false 时，检查带注解的值是否小于指定的最大值。否则，该值是否小于或等于指定的最大值。参数值是根据 `BigDecimal` 字符串表示形式的值。
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `CharSequence`， `byte`， `short`， `int`， `long` 以及各自的基本类型包装器; Hibernate Validator还支持 https://jcp.org/en/jsr/detail?id=354[JSR 354 API] 中的 `Number` 和 `javax.money.MonetaryAmount` 的实现。
+	Hibernate 元数据影响::: None
+
+`@DecimalMin(value=， inclusive=)`:: 当 `inclusive` = false 时，检查带注解的值是否大于指定的最小值。否则，该值是否大于或等于指定的最小值。参数值是根据 `BigDecimal` 字符串表示形式的值。
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `CharSequence`， `byte`， `short`， `int`， `long` 以及各自的基本类型包装器; Hibernate Validator还支持 https://jcp.org/en/jsr/detail?id=354[JSR 354 API] 中的 `Number` 和 `javax.money.MonetaryAmount` 的实现。
+	Hibernate 元数据影响::: None
+
+`@Digits(integer=， fraction=)`:: 检查被注解的值是否最多有 `integer` 位整数和 `fraction` 位小数
+	支持的数据类型::: BigDecimal， `BigInteger`， `CharSequence`， `byte`， `short`， `int`， `long` a以及各自的基本类型包装器; Hibernate Validator还支持 https://jcp.org/en/jsr/detail?id=354[JSR 354 API] 中的 `Number` 和 `javax.money.MonetaryAmount` 的实现。
+	Hibernate 元数据影响::: 定义数据的精度和规模
+
+`@Email`:: 检查指定的字符序列是否为有效的电子邮件地址。可选参数 regexp 和 flag 允许指定电子邮件必须匹配的附加正则表达式(包括正则表达式标志)。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Future`:: 检查注解的日期是否在将来
+	支持的数据类型::: `java.util.Date`， `java.util.Calendar`， `java.time.Instant`， `java.time.LocalDate`， `java.time.LocalDateTime`， `java.time.LocalTime`， `java.time.MonthDay`， `java.time.OffsetDateTime`， `java.time.OffsetTime`， `java.time.Year`， `java.time.YearMonth`， `java.time.ZonedDateTime`， `java.time.chrono.HijrahDate`， `java.time.chrono.JapaneseDate`， `java.time.chrono.MinguoDate`， `java.time.chrono.ThaiBuddhistDate`; Hibernate Validator还支持 http://www.joda.org/joda-time/[Joda Time] 中的 `ReadablePartial` 和 `ReadableInstant` 实现
+	Hibernate 元数据影响::: None
+
+`@FutureOrPresent`:: 检查注解的日期是现在或者将来
+	支持的数据类型::: `java.util.Date`， `java.util.Calendar`， `java.time.Instant`， `java.time.LocalDate`， `java.time.LocalDateTime`， `java.time.LocalTime`， `java.time.MonthDay`， `java.time.OffsetDateTime`， `java.time.OffsetTime`， `java.time.Year`， `java.time.YearMonth`， `java.time.ZonedDateTime`， `java.time.chrono.HijrahDate`， `java.time.chrono.JapaneseDate`， `java.time.chrono.MinguoDate`， `java.time.chrono.ThaiBuddhistDate`; Hibernate Validator还支持 http://www.joda.org/joda-time/[Joda Time] 中的 `ReadablePartial` 和 `ReadableInstant` 实现
+	Hibernate 元数据影响::: None
+
+`@Max(value=)`:: 检查注解的值是否小于或等于指定的最大值
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `byte`， `short`， `int`， `long` 以及原始类型的各个包装器; Hibernate Validator还支持  `CharSequence` 的子类 (字符序列表示的数值被求值)，以及 `Number` 和 `javax.money.MonetaryAmount` 的子类。
+	Hibernate 元数据影响::: 在列上添加检查约束
+
+`@Min(value=)`:: 检查注解的值是否高于或等于指定的最小值
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `byte`， `short`， `int`， `long` 以及原始类型的各个包装器; Hibernate Validator还支持  `CharSequence` 的子类 (字符序列表示的数值被求值)，以及 `Number` 和 `javax.money.MonetaryAmount` 的子类。
+	Hibernate 元数据影响::: 在列上添加检查约束
+
+`@NotBlank`:: 检查带注解的字符序列是否为空，去除首尾的空格后的长度是否大于0。 与 `@NotEmpty` 的不同之处在于，这个约束只能应用于字符序列，并且尾随的空格被忽略。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@NotEmpty`:: 检查带注解的元素是否为 `null` 或 ""
+	支持的数据类型::: `CharSequence`， `Collection`， `Map` and arrays
+	Hibernate 元数据影响::: None
+
+`@NotNull`:: 检查注解的值是否为 `null`
+	支持的数据类型::: Any type
+	Hibernate 元数据影响::: Column(s) are not nullable
+
+`@Negative`:: 检查元素是否严格为负。零值无效。
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `byte`， `short`， `int`， `long` 和各自的基本类型包装器;Hibernate Validator还支持  `CharSequence` 的子类 (字符序列表示的数值被求值)，以及 `Number` 和 `javax.money.MonetaryAmount` 的子类。
+	Hibernate 元数据影响::: None
+
+`@NegativeOrZero`:: 检查元素是否为负数或零。
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `byte`， `short`， `int`， `long` 和各自的基本类型包装器;Hibernate Validator还支持  `CharSequence` 的子类 (字符序列表示的数值被求值)，以及 `Number` 和 `javax.money.MonetaryAmount` 的子类。
+	Hibernate 元数据影响::: None
+
+`@Null`:: 检查注解的值是否为 `null`
+	支持的数据类型::: Any type
+	Hibernate 元数据影响::: None
+
+`@Past`:: 检查注解的日期是否在过去
+	支持的数据类型::: `java.util.Date`，`java.util.Calendar`， `java.time.Instant`， `java.time.LocalDate`， `java.time.LocalDateTime`， `java.time.LocalTime`， `java.time.MonthDay`， `java.time.OffsetDateTime`， `java.time.OffsetTime`， `java.time.Year`， `java.time.YearMonth`， `java.time.ZonedDateTime`， `java.time.chrono.HijrahDate`， `java.time.chrono.JapaneseDate`， `java.time.chrono.MinguoDate`， `java.time.chrono.ThaiBuddhistDate`; Hibernate Validator还支持 http://www.joda.org/joda-time/[Joda Time] 中的 `ReadablePartial` 和 `ReadableInstant` 实现
+	Hibernate 元数据影响::: None
+
+`@PastOrPresent`:: 检查注解的日期是过去或者现在
+	支持的数据类型::: `java.util.Date`，`java.util.Calendar`， `java.time.Instant`， `java.time.LocalDate`， `java.time.LocalDateTime`， `java.time.LocalTime`， `java.time.MonthDay`， `java.time.OffsetDateTime`， `java.time.OffsetTime`， `java.time.Year`， `java.time.YearMonth`， `java.time.ZonedDateTime`， `java.time.chrono.HijrahDate`， `java.time.chrono.JapaneseDate`， `java.time.chrono.MinguoDate`， `java.time.chrono.ThaiBuddhistDate`; Hibernate Validator还支持 http://www.joda.org/joda-time/[Joda Time] 中的 `ReadablePartial` 和 `ReadableInstant` 实现
+	Hibernate 元数据影响::: None
+
+`@Pattern(regex=， flags=)`:: 考虑给定的标志匹配，检查带注解的字符串是否与正则表达式 `regex` 匹配
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Positive`:: 检查元素是否为严格正数。零值无效。
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `byte`， `short`， `int`， `long` 和各自的基本类型包装器;Hibernate Validator还支持  `CharSequence` 的子类 (字符序列表示的数值被求值)，以及 `Number` 和 `javax.money.MonetaryAmount` 的子类。
+	Hibernate 元数据影响::: None
+
+`@PositiveOrZero`:: 检查元素是正数或者零。
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `byte`， `short`， `int`， `long` 和各自的基本类型包装器;Hibernate Validator还支持  `CharSequence` 的子类 (字符序列表示的数值被求值)，以及 `Number` 和 `javax.money.MonetaryAmount` 的子类。
+	Hibernate 元数据影响::: None
+
+`@Size(min=， max=)`:: 检查带注解的元素的大小是否介于最小和最大(包括)之间
+	支持的数据类型::: `CharSequence`， `Collection`， `Map` and arrays
+	Hibernate 元数据影响::: Column length will be set to `max`
+
+[NOTE]
+====
+在上面列出的参数之上，每个约束都有参数消息、组和有效负载。这是 Jakarta Bean Validation 规范的一个要求。
+====
+
+[[validator-defineconstraints-hv-constraints]]
+==== 附加约束
+
+除了 Jakarta Bean Validation API 定义的约束之外，Hibernate Validator 还提供了下面列出的几个有用的自定义约束。除了一个 `@ScriptAssert` 例外可以用于类级别的约束，这些约束只适用于字段/属性级别。
+
+`@CreditCardNumber(ignoreNonDigitCharacters=)`:: 检查带注解的字符序列是否通过 Luhn 校验和测试。注意，此校验旨在检查用户错误，而不是信用卡的有效性！参见 http://www.dirigodev.com/blog/ecommerce/anatomy-of-a-credit-card-number/[Anatomy of a credit card number]. `ignoreNonDigitCharacters` 允许忽略非数字字符。默认值为 `false`。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Currency(value=)`:: 检查带注解的 `javax.money.MonetaryAmount` 的货币单位是否是指定货币单位的一部分。
+	支持的数据类型:::  `javax.money.MonetaryAmount` https://jcp.org/en/jsr/detail?id=354[JSR 354 API] 的实现类
+	Hibernate 元数据影响::: None
+
+`@DurationMax(days=， hours=， minutes=， seconds=， millis=， nanos=， inclusive=)`:: 注解了 `java.time.Duration` 元素不大于由注解参数构造的元素。如果将 `inclusive` 标志设置为 `true`，则允许相等。
+	支持的数据类型::: `java.time.Duration`
+	Hibernate 元数据影响::: None
+
+`@DurationMin(days=， hours=， minutes=， seconds=， millis=， nanos=， inclusive=)`:: 注解了 `java.time.Duration` 元素不小于由注解参数构造的元素。如果将 `inclusive` 标志设置为 `true`，则允许相等。
+	支持的数据类型::: `java.time.Duration`
+	Hibernate 元数据影响::: None
+
+`@EAN`:: 检查带注解的字符序列是否为有效的 http://en.wikipedia.org/wiki/International_Article_Number_%28EAN%29[EAN] 条形码。类型决定了条形码的类型。默认值是 EAN-13。 
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@ISBN`:: 检查带注解的字符序列是否为有效的 https://en.wikipedia.org/wiki/International_Standard_Book_Number[ISBN] 条形码。类型决定了条形码的类型。默认值是 ISBN-13。 
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Length(min=， max=)`:: 校验带注解的字符序列长度是否在 `min` 和 `max` 之间
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: Column length will be set to max
+
+`@CodePointLength(min=， max=， normalizationStrategy=)`:: 校验带注解的字符序列的代码点长度是否在最小值和最大值之间。如果设置了 `normalizationStrategy` ，则校验规范化值。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@LuhnCheck(startIndex= ， endIndex=， checkDigitIndex=， ignoreNonDigitCharacters=)`:: 检查带注解的字符序列中的数字是否通过 Luhn 校验和算法 (see also http://en.wikipedia.org/wiki/Luhn_algorithm[Luhn algorithm]). `startIndex` 和 `endIndex` 只允许在指定的子字符串上运行算法。 `checkDigitIndex` 允许使用字符序列中的任意数字作为校验数字。如果未指定，则假定检查数字是指定范围的一部分。最后但并非最不重要的是，`ignoreNonDigitCharacters` 允许忽略非数字字符。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Mod10Check(multiplier=， weight=， startIndex=， endIndex=， checkDigitIndex=， ignoreNonDigitCharacters=)`:: 检查带注解的字符序列中的数字是否通过了通用的 mod 10校验和算法。 `multiplier` 决定奇数的乘数(缺省为3) ，加权为偶数(缺省为1)。 `startIndex` 和 `endIndex` 只允许在指定的子字符串上运行算法。 `checkDigitIndex` 允许使用字符序列中的任意数字作为校验数字。如果未指定，则假定检查数字是指定范围的一部分。最后但并非最不重要的是，`ignoreNonDigitCharacters` 允许忽略非数字字符。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Mod11Check(threshold=， startIndex=， endIndex=， checkDigitIndex=， ignoreNonDigitCharacters=， treatCheck10As=， treatCheck11As=)`:: C检查带注解的字符序列中的数字是否通过 mod 11校验和算法。 `threshold`指定 mod11乘数增长的阈值; 如果没有指定值，乘数将无限增长。 `treatCheck10As` 和 `treatCheck11As` 分别指定当 mod 11校验和等于10或11时使用的校验数字。默认值分别为 x 和0。  `startIndex`， `endIndex` `checkDigitIndex` and `ignoreNonDigitCharacters`  的语义与 `@Mod10Check`中的相同。
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+`@Normalized(form=)`:: 校验注解的字符序列是否根据给定的 `form` 进行了规范化。
+        支持的数据类型::: `CharSequence`
+        Hibernate 元数据影响::: None
+
+`@Range(min=， max=)`:: 检查注解值是否位于指定的最小值和最大值之间
+	支持的数据类型::: `BigDecimal`， `BigInteger`， `CharSequence`， `byte`， `short`， `int`， `long`  以及基元类型的相应包装器
+	Hibernate 元数据影响::: None
+
+`@ScriptAssert(lang=， script=， alias=， reportOn=)`::  检查是否可以根据带注解的元素成功地计算给定的脚本。为了使用这个约束，JSR 223(“ Java ^TM^ 平台的脚本编程”)定义的 Java 脚本 API 的实现必须是类路径的一部分。要求值的表达式可以使用任何脚本或表达式语言编写，在类路径中可以找到与 JSR 223兼容的引擎。即使这是一个类级别的约束，也可以使用 `reportOn` 属性报告特定属性(而不是整个对象)上的约束冲突。
+	支持的数据类型::: Any type
+	Hibernate 元数据影响::: None
+
+`@UniqueElements`:: 检查带注解的集合是否只包含唯一元素。相等是使用 `equals()` 方法确定的。默认消息不包含重复元素的列表，但是可以通过重写消息并使用{ `duplicates` }消息参数来包含它。重复元素列表也包含在约束违反的动态有效负载中。
+	支持的数据类型::: `Collection`
+	Hibernate 元数据影响::: None
+
+`@URL(protocol=， host=， port=， regexp=， flags=)`:: 根据 RFC2396检查带注解的字符序列是否为有效的 URL。如果指定了任何可选参数 `protocol`， `host` or `port` ，则相应的 URL 片段必须匹配指定的值。可选参数 `regexp` 和 `flags` 允许指定 URL 必须匹配的附加正则表达式(包括正则表达式标志)。根据默认情况，此约束使用 `java. net. URL` 构造函数校验给定字符串是否表示有效 URL。还有一个基于正则表达式的版本—— `RegexpURLValidator` ——可以通过 XML ( see <<section-mapping-xml-constraints>>) 或 (see <<section-programmatic-constraint-definition>>).
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+
+===== 特殊国家约束
+
+Hibernate Validator 还提供了一些国家特有的约束，例如用于校验社会安全号码。
+
+[NOTE]
+====
+如果您必须实现一个国家特定的约束，可以考虑将其作为 Hibernate Validator 的一个贡献！
+====
+
+`@CNPJ`:: 检查带注解的字符序列是否代表巴西公司纳税人注册号(Cadastro de Pessoa Jurídica)
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Brazil
+
+`@CPF`:: 检查带注解的字符序列是否代表巴西个人纳税人登记号(Cadastro de Pessoa Física)
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Brazil
+
+`@TituloEleitoral`:: 检查带注解的字符序列是否代表巴西选民身份证号码 (http://www.exceldoseujeito.com.br/2008/12/19/validar-cpf-cnpj-e-titulo-de-eleitor-parte-ii/[Título Eleitoral])
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Brazil
+
+`@NIP`:: 检查带注解的字符序列是否表示波兰 VAT 标识号 (https://pl.wikipedia.org/wiki/NIP[NIP])
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Poland
+
+`@PESEL`:: 检查带注解的字符序列是否表示波兰国家标识号 (https://pl.wikipedia.org/wiki/PESEL[PESEL])
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Poland
+
+`@REGON`:: 检查带注解的字符序列是否表示波兰纳税人识别号 (https://pl.wikipedia.org/wiki/REGON[REGON]). 。可同时应用于9位和14位数字版本的 REGON
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Poland
+
+`@INN`:: 检查带注解的字符序列是否表示一个俄罗斯纳税人识别号 (https://ru.wikipedia.org/wiki/%D0%98%D0%B4%D0%B5%D0%BD%D1%82%D0%B8%D1%84%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D0%BE%D0%BD%D0%BD%D1%8B%D0%B9_%D0%BD%D0%BE%D0%BC%D0%B5%D1%80_%D0%BD%D0%B0%D0%BB%D0%BE%D0%B3%D0%BE%D0%BF%D0%BB%D0%B0%D1%82%D0%B5%D0%BB%D1%8C%D1%89%D0%B8%D0%BA%D0%B0[INN]). 可以适用于国际旅馆的个人和法律版本
+	支持的数据类型::: `CharSequence`
+	Hibernate 元数据影响::: None
+	Country::: Russia
+
+[TIP]
+====
+在某些情况下，Jakarta Bean Validation 约束和 Hibernate Validator提供的自定义约束都不能满足您的需求。在这种情况下，您可以很容易地编写自己的约束。你可以 <<validator-customconstraints>> 中找到更多信息。
+====

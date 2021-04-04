@@ -1,0 +1,225 @@
+[[validator-annotation-processor]]
+== 注释处理器
+
+你有没有无意中做过一些事情，比如
+
+* 在不支持的数据类型上指定约束注释(例如用 `@Past` 注释一个 String) 
+* 注释 javabean 属性的 setter (而不是 getter 方法)
+* 使用约束注释(不支持)注释静态字段/方法？
+
+那么 Hibernate Validator 注释处理器就是适合您的工具。通过插入构建过程并在约束注释使用不正确时引发编译错误，它有助于防止此类错误。
+
+[TIP]
+====
+您可以在 http://sourceforge.net/projects/hibernate/files/hibernate-validator[Sourceforge] 或者 Maven Central 等常见的存储库 GAV `org.hibernate.validator:hibernate-validator-annotation-processor:{hvVersion}` 中找到 Hibernate Validator Annotation Processor 作为发行包的一部分。决赛。
+====
+
+[[validator-annotationprocessor-prerequisites]]
+=== 先决条件
+
+Hibernate Validator 注释处理器基于 http://jcp.org/en/jsr/detail?id=269[JSR 269] 定义的“Pluggable Annotation Processing API ”， http://jcp.org/en/jsr/detail?id=269[JSR 269] 是 Java 平台的一部分。
+
+[[validator-annotationprocessor-features]]
+=== 功能
+
+从 Hibernate Validator {hvVersion} 开始，Hibernate Validator 注释处理器检查如下:
+
+* 注释元素的类型允许使用约束注释
+* 只有非静态字段或方法用约束注释注释
+* 只有非基元字段或方法用 `@Valid` 注释
+* 只有这些方法用约束注释注释，这些约束注释是有效的 javabean getter 方法(可选地，参见下面)
+* 只有这样的注释类型用约束注释注释，这些约束注释本身就是约束注释
+* 使用 `@GroupSequenceProvider` 定义动态默认组序列是有效的
+* 注释参数值是有意义和有效的
+* 继承层次结构中的方法参数约束尊重继承规则
+* 方法在继承层次结构中返回值约束遵循继承规则
+
+[[validator-annotationprocessor-options]]
+=== 选项
+
+Hibernate Validator Annotation Processor 的行为可以通过以下 {javaTechnotesBaseUrl}/tools/windows/javac.html#BHCHACIB[processor options] 来控制:
+
+`diagnosticKind`:: 控制如何报告约束问题。必须是 enum `javax.tools.Diagnostic.Kind` 中某个值的字符串表示形式。例如 `WARNING` 。每当 AP 检测到约束问题时，`ERROR` 值将导致编译停止。默认为 `ERROR` 。
+
+`methodConstraintsSupported`:: 控制在任何类型的方法中是否允许约束。使用 Hibernate Validator 支持的方法级别约束时，必须将其设置为 `true` 。可以将其设置为 `false` ，以便只允许在由 Jakarta Bean Validation API 定义的 javabean getter 方法中存在约束。默认为 `true` 。
+
+`verbose`:: 控制是否显示详细的处理信息，这对调试有用。一定是 `true` 的或 `false` 的。默认为 `false`。
+
+[[validator-annotationprocessor-usage]]
+=== 使用注释处理器
+
+本节详细说明如何将 Hibernate Validator 注释处理器集成到命令行构建(Maven、 Ant、 javac)以及基于 IDE 的构建(Eclipse、 IntelliJ IDEA、 NetBeans)中。
+
+[[validator-annotationprocessor-commandline]]
+==== 命令行构建
+
+[[validator-annotationprocessor-maven]]
+===== Maven
+
+对于 Maven 使用 Hibernate Validator 注释处理器，可以通过 `annotationProcessorPaths` 选项设置如下:
+
+.在 Maven 中使用 Hibernate Validator 注释处理器
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<project>
+    [...]
+    <build>
+        [...]
+        <plugins>
+            [...]
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.6.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.hibernate.validator</groupId>
+                            <artifactId>hibernate-validator-annotation-processor</artifactId>
+                            <version>{hvVersion}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+            [...]
+        </plugins>
+        [...]
+    </build>
+    [...]
+</project>
+----
+====
+
+[[validator-annotationprocessor-gradle]]
+===== Gradle
+
+当使用 https://gradle.org[Gradle] 时，将注释处理器作为一个 `annotationProcessor` 依赖项引用就足够了。
+
+.使用 Gradle 的注释处理器
+====
+[source, groovy]
+[subs="verbatim,attributes"]
+----
+dependencies {
+	annotationProcessor group: 'org.hibernate.validator', name: 'hibernate-validator-annotation-processor', version: '{hvVersion}'
+
+	// any other dependencies ...
+}
+----
+====
+
+[[validator-annotationprocessor-ant]]
+===== Apache Ant
+
+与直接使用 javac 类似，在调用 http://ant.apache.org/[Apache Ant] 的  http://ant.apache.org/manual/CoreTasks/javac.html[javac task] ，可以将注释处理器作为编译器参数添加:
+
+.使用 Ant 的注释处理器
+====
+[source, XML]
+[subs="verbatim,attributes"]
+----
+<javac srcdir="src/main"
+       destdir="build/classes"
+       classpath="/path/to/validation-api-{bvVersion}.jar">
+       <compilerarg value="-processorpath" />
+       <compilerarg value="/path/to/hibernate-validator-annotation-processor-{hvVersion}.jar"/>
+</javac>
+----
+====
+
+[[validator-annotationprocessor-javac]]
+===== javac
+
+在命令行上使用 {javaTechnotesBaseUrl}/guides/javac/index.html[javac] 进行编译时，使用“ processorpath”选项指定 JAR _hibernate-validator-annotation-processor-{hvVersion}.jar_ ，如下面的清单所示。编译器将自动检测处理器并在编译期间调用它。
+
+.使用带 javac 的注释处理器
+====
+[subs="verbatim,attributes"]
+----
+javac src/main/java/org/hibernate/validator/ap/demo/Car.java \
+   -cp /path/to/validation-api-{bvVersion}.jar \
+   -processorpath /path/to/hibernate-validator-annotation-processor-{hvVersion}.jar
+----
+====
+
+[[validator-annotationprocessor-ide]]
+==== IDE builds
+
+===== Eclipse
+
+如果您已经安装了 https://www.eclipse.org/m2e/[M2E Eclipse plug-in] 插件，那么将为上述配置的 Maven 项目自动设置注释处理器。
+
+对于普通的 Eclipse 项目，按照以下步骤设置注释处理器:
+
+* 右键单击项目，选择 "Properties"
+* 进入「"Java Compiler"  ，确保 "Compiler compliance level" 设定为  "1.8" 。否则处理器将不会被激活
+* 进入 "Java Compiler - Annotation Processing" 并选择 "Enable annotation processing" 
+* 转到 "Java Compiler - Annotation Processing - Factory Path" ，添加 JAR
+hibernate-validator-annotation-processor-{hvVersion}.jar
+* 确认 the workspace rebuild
+
+现在，您应该可以在编辑器和 "Problem" 视图中看到任何注释问题，它们都是常规的错误标记:
+
+image::annotation_processor_eclipse.png[]
+
+[[validator-annotationprocessor-idea]]
+===== IntelliJ IDEA
+
+使用 http://www.jetbrains.com/idea/[IntelliJ IDEA] (9及以上版本)中的注释处理器必须遵循以下步骤:
+
+* Go to "File", then "Settings",
+* Expand the node "Compiler", then "Annotation Processors"
+* Choose "Enable annotation processing" and enter the following as "Processor path":
+/path/to/hibernate-validator-annotation-processor-{hvVersion}.jar
+* Add the processor's fully qualified name org.hibernate.validator.ap.ConstraintValidationProcessor
+to the "Annotation Processors" list
+* If applicable add you module to the "Processed Modules" list
+
+Rebuilding your project then should show any erroneous constraint annotations:
+
+image::annotation_processor_intellij.png[]
+
+[[validator-annotationprocessor-netbeans]]
+===== NetBeans
+
+The http://www.netbeans.org/[NetBeans] IDE supports using
+annotation processors within the IDE build. To do so, do the following:
+
+* Right-click your project, choose "Properties"
+* Go to "Libraries", tab "Processor", and add the JAR hibernate-validator-annotation-processor-{hvVersion}.jar
+* Go to "Build - Compiling", select "Enable Annotation Processing" and "Enable Annotation Processing
+in Editor". Add the annotation processor by specifying its fully qualified name
+org.hibernate.validator.ap.ConstraintValidationProcessor
+
+Any constraint annotation problems will then be marked directly within the editor:
+
+image::annotation_processor_netbeans.png[]
+
+[[validator-annotationprocessor-known-issues]]
+=== Known issues
+
+The following known issues exist as of July 2017:
+
+* Container element constraints are not supported for now.
+
+* Constraints applied to a container but in reality applied to the container elements (be it via
+the `Unwrapping.Unwrap` payload or via a value extractor marked with `@UnwrapByDefault`) are not supported
+correctly.
+
+* https://hibernate.atlassian.net/browse/HV-308[HV-308]: Additional validators
+registered for a constraint
+http://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/#chapter-xml-configuration[using XML] are
+not evaluated by the annotation processor.
+
+* Sometimes custom constraints can't be
+https://hibernate.atlassian.net/browse/HV-293[properly evaluated] when
+using the processor within Eclipse. Cleaning the project can help in these situations. This seems to
+be an issue with the Eclipse JSR 269 API implementation, but further investigation is required here.
+
+* When using the processor within Eclipse, the check of dynamic default group sequence definitions
+doesn't work. After further investigation, it seems to be an issue with the Eclipse JSR 269 API
+implementation.

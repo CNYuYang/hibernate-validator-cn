@@ -1,0 +1,279 @@
+[[validator-integration]]
+== 与其他框架集成
+
+Hibernate Validator 用于实现多层数据校验，其中约束注解只标注一次(带注解的domain域模型) ，可以在应用程序的各个不同层进行检查。由于这个原因，存在与其他技术的多个集成点。
+
+[[validator-checkconstraints-orm]]
+=== ORM 集成
+
+Hibernate Validator 可以和 Hibernate ORM 以及所有纯 Java 编写的持久层框架集成使用。
+
+
+[TIP]
+====
+当需要校验延迟加载的关联时，建议将约束放在关联的 getter 方法上。Hibernate ORM 用代理实例替换了延迟加载的关联，代理实例通过 getter 请求时得到初始化/加载的值。在这种情况下，如果将约束放置在字段级别，则将使用实际的代理实例，这将导致校验错误。
+====
+
+[[validator-checkconstraints-db]]
+==== 数据库schema级别校验
+
+开箱即用，Hibernate ORM 会将您为实体定义的约束转换为映射元数据。例如，如果实体的一个属性被注解为 `@NotNull` ，那么在 Hibernate ORM 生成的 DDL 语句中，它的列将被声明为 `not null` 。
+
+如果由于某种原因，需要禁用该特性，请将 `hibernate.validator.apply_to_ddl` 设置为 `false`。另见<<validator-defineconstraints-spec>>和<<validator-defineconstraints-hv-constraints>>。
+
+还可以通过设置 `org.hibernate.validator.group.ddl` 属性，将 DDL 约束生成限制为已定义约束的一个子集。该属性指定了用逗号分隔的、完全指定的组的类名。约束必须是这些组的一部分，才会在生成 DDL 语句时被考虑。
+
+[[validator-checkconstraints-orm-hibernateevent]]
+==== Hibernate ORM 事件校验
+
+Hibernate Validator 有一个内置的 Hibernate 事件监听器- https://github.com/hibernate/hibernate-orm/blob/master/hibernate-core/src/main/java/org/hibernate/cfg/beanvalidation/BeanValidationEventListener.java[`org.hibernate.cfg.beanvalidation.BeanValidationEventListener`] - 它是 Hibernate ORM 的一部分。每当发生 `PreInsertEvent` 、 `PreUpdateEvent` 或 `PreDeleteEvent` 时，监听器将校验实体实例的所有约束，并在违反任何约束时抛出异常。根据默认情况，在 Hibernate ORM 进行任何插入或更新之前，将校验对象。删除事件之前将不会触发校验。您可以使用属性 `jakarta.persistence.validation.group.pre-persist`,
+`jakarta.persistence.validation.group.pre-update` 和 `jakarta.persistence.validation.group.pre-remove` 将组配置为根据每个事件类型进行校验。这些属性的值是要校验的组的逗号分隔的完全指定的类名。<<example-beanvalidationeventlistener-config>>显示了这些属性的默认值。在这种情况下，它们也可以省略。
+
+在违反约束时，事件将抛出一个运行时 `ConstraintViolationException` ，其中包含一组描述每个失败的 `ConstraintViolation` 实例。
+
+如果 Hibernate Validator 出现在classpath中，Hibernate ORM 将透明地使用它。如果Hibernate Validator 位于classpath中，但是您不想对类校验，可以将 `jakarta.persistence.validation.mode` 设置为none。
+
+[NOTE]
+====
+如果没有用校验注解对 bean 进行注解，那么就不会有运行时性能开销。
+====
+
+如果您需要为 Hibernate ORM 手动设置事件监听器，请在 _hibernate.cfg.xml_ 中使用以下配置:
+
+[[example-beanvalidationeventlistener-config]]
+.手动配置 `BeanValidationEvenListener`
+====
+[source, XML]
+----
+<hibernate-configuration>
+    <session-factory>
+        ...
+        <property name="jakarta.persistence.validation.group.pre-persist">
+            jakarta.validation.groups.Default
+        </property>
+        <property name="jakarta.persistence.validation.group.pre-update">
+            jakarta.validation.groups.Default
+        </property>
+        <property name="jakarta.persistence.validation.group.pre-remove"></property>
+        ...
+        <event type="pre-update">
+            <listener class="org.hibernate.cfg.beanvalidation.BeanValidationEventListener"/>
+        </event>
+        <event type="pre-insert">
+            <listener class="org.hibernate.cfg.beanvalidation.BeanValidationEventListener"/>
+        </event>
+        <event type="pre-delete">
+            <listener class="org.hibernate.cfg.beanvalidation.BeanValidationEventListener"/>
+        </event>
+    </session-factory>
+</hibernate-configuration>
+----
+====
+
+==== JPA
+
+如果您使用的是 JPA 2，并且 Hibernate Validator 位于classpath中，则 JPA2规范要求启用 Jakarta Bean Validation。在这种情况下，可以在 _persistence.xml_. 中配置 `jakarta.persistence.validation.group.pre-persist`,
+`jakarta.persistence.validation.group.pre-update` 和 `jakarta.persistence.validation.group.pre-remove` 这两个属性，如<<validator-checkconstraints-orm-hibernateevent>>所述。还定义了一个节点校验模式，可以设置为 `AUTO` 、 `CALLBACK` 或 `NONE` 。默认值是 `AUTO` 。
+
+[[section-presentation-layer]]
+
+=== JSF & Seam
+
+当使用 JSF2 或 JBoss Seam ，并且 Hibernate Validator (Jakarta Bean Validation)存在运行环境中时，对应用程序中的每个字段都会触发校验。<<example-jsf2>> 展示了 JSF 页面中的 `f:validateBean` 标记的示例。 `validationGroups` 属性是可选的，可用于指定以逗号分隔的校验组列表。默认值是 `jakarta.validation.groups.Default` 。有关更多信息，请参考 Seam 文档或 JSF 2规范。
+
+[[example-jsf2]]
+.在JSF2使用Jakarta Bean Validation
+====
+[source, XML]
+----
+<h:form>
+
+  <f:validateBean validationGroups="jakarta.validation.groups.Default">
+
+    <h:inputText value=#{model.property}/>
+    <h:selectOneRadio value=#{model.radioProperty}> ... </h:selectOneRadio>
+    <!-- other input components here -->
+
+  </f:validateBean>
+
+</h:form>
+----
+====
+
+[TIP]
+====
+JSF 2和 Jakarta Bean Validation 之间的集成在 http://jcp.org/en/jsr/detail?id=314[JSR-314] 的“Jakarta Bean Validation Integration”一章中进行了描述。了解 JSF 2实现了一个自定义的 `MessageInterpolator` 以确保正确的本地化是很有趣的。为了鼓励使用 Jakarta Bean Validation 消息工具，JSF 2默认只显示生成的 Bean 校验消息。但是，这可以通过应用程序资源包配置，方法是提供以下配置( `{0}` 替换为 Jakarta Bean 校验消息， `{1}` 替换为 JSF 组件标签) :
+
+
+----
+jakarta.faces.validator.BeanValidator.MESSAGE={1}: {0}
+----
+
+默认的配置:
+
+----
+jakarta.faces.validator.BeanValidator.MESSAGE={0}
+----
+====
+
+
+[[section-integration-with-cdi]]
+=== CDI
+
+从1.1版本开始，Bean Validation (Jakarta Bean Validation)与 CDI (用于 Jakarta EE 的上下文和依赖注入文件)集成在一起。
+
+这种集成为 `Validator` 和 `ValidatorFactory` 提供了 CDI 管理的 bean，并且支持约束校验器、自定义消息插值器、可遍历解析器、约束校验器工厂、参数名提供者、时钟提供者和值提取器等依赖注入。
+
+此外，调用时将自动校验 CDI 管理 bean 的方法和构造函数的参数和返回值约束。
+
+当您的应用程序在 Java EE 容器上运行时，默认情况下将启用此集成。在 Servlet 容器或纯 Java SE 环境中使用 CDI 时，可以使用 Hibernate Validator 提供的 CDI 可移植扩展。为此，将可移植扩展添加到类路径中，如<<section-getting-started-cdi>>。
+
+==== 依赖注入
+
+CDI 的依赖注入机制使得获取 `ValidatorFactory` 和 `Validator` 实例。并在你管理的 bean 中使用它们变得非常容易。只需使用 `@jakarta.inject.Inject` 注解 bean 的实例字段即可注入对象。如<<example-dependency-injection>>。
+
+[[example-dependency-injection]]
+.通过 `@Inject` 注入 validator factory 和 validator
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/validator/RentalStation.java[tags=include]
+----
+====
+
+注入的 bean 是默认的校验器工厂和校验器实例。为了配置它们 - 例如使用自定义消息插值器 - 您可以使用 Jakarta Bean Validation XML 描述符，如<<chapter-xml-configuration>>。
+
+如果您正在与几个 Jakarta Bean Validation 实现框架一起工作，您可以通过使用 `@HibernateValidator` 限定符注解注入点来确保从 Hibernate Validator 注入工厂和校验程序，<<example-dependency-injection-using-hv>> 。
+
+[[example-dependency-injection-using-hv]]
+.使用 `@HibernateValidator`  限定符注解
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/validator/qualifier/RentalStation.java[tags=include]
+----
+====
+
+[TIP]
+====
+限定符注解的完全限定名是 `org.hibernate.validator.cdi.HibernateValidator` 。你需要确保不是导入 `org.hibernate.validator.HibernateValidator` ，它是 `ValidationProvider` 实现，用于在使用引导 API 时选择 Hibernate Validator (参见<<section-retrieving-validator-factory-validator>>)。
+====
+
+通过 `@Inject` ，您还可以将依赖关系注入约束校验器和其他 Jakarta Bean Validation 对象，例如 `MessageInterpolator` 实现等。
+
+<<example-constraint-validator-injected-bean>> 演示了如何在 `ConstraintValidator` 实现中使用注入的 CDI bean 来确定给定的约束是否有效。如示例所示，您还可以使用 `@PostConstruct` 和 `@PreDestroy` 回调来实现所需的构造和销毁逻辑。
+
+[[example-constraint-validator-injected-bean]]
+.带注入 bean 的约束校验器
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/injection/ValidLicensePlateValidator.java[tags=include]
+----
+====
+
+==== 方法校验
+
+CDI 的方法拦截设施允许与 Jakarta Bean Validation 的方法校验功能进行非常紧密的集成。只需将约束注解放在 CDI bean 的参数和可执行文件的返回值上，它们将在调用方法或构造函数之前(参数约束)和之后(返回值约束)自动进行校验。
+
+注意，不需要显式的拦截器绑定，相反，所需的方法校验拦截器将自动注册为所有带有约束方法和构造函数的托管 bean。
+
+[NOTE]
+====
+拦截器 `org.hibernate.validator.cdi.internal.interceptor.ValidationInterceptor`  由 `org.hibernate.validator.cdi.internal.ValidationExtension` 这隐式地发生在 Java EE 执行期函式库中，或者通过添加 _hibernate-validator-cdi_ 工件来显式地发生-参见<<section-getting-started-cdi>>
+====
+
+您可以参见<<example-cdi-method-validation>>。
+
+[[example-cdi-method-validation]]
+.带有方法级约束的 CDI 管理 bean
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/methodvalidation/RentalStation.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/methodvalidation/RentCarRequest.java[tags=include]
+----
+====
+
+在这里， `RentalStation` bean 承载了几个方法约束。当从另一个 bean (如 `RentCarRequest` )调用一个 `RentalStation` 方法时，将自动校验被调用方法的约束。如果像示例中那样传递了任何非法的参数值，方法拦截器将抛出 `ConstraintViolationException` ，并提供被违反的约束的详细信息。如果方法的返回值违反了任何返回值约束，情况也是如此。
+
+类似地，构造函数约束在调用时自动进行校验。在示例中，将校验构造函数返回的 `RentalStation` 对象，因为构造函数返回值标记为 `@Valid`。
+
+===== 校验可执行类型
+
+Jakarta Bean Validation允许对自动校验的可执行类型进行细粒度控制。默认情况下，会校验对构造函数和非 getter 方法的约束。因此，在<<example-cdi-method-validation>> 中，方法  `RentalStation#getAvailableCars()` 上的 `@NotNull` 约束在调用方法时不会得到校验。
+
+您可以通过以下选项配置哪些类型的可执行文件在调用时进行校验:
+
+* 通过 XML 描述符 __META-INF/validation.xml__ 全局配置可执行类型; 请参阅<<section-configuration-validation-xml>>的示例
+
+* 在可执行或类型级别上使用 `@ValidateOnExecution` 注解
+
+如果为给定的可执行文件指定了多个配置源，则可执行级别上的 `@ValidateOnExecution` 优先于类型级别上的 `@ValidateOnExecution` ，而 `@ValidateOnExecution` 通常优先于 __META-
+INF/validation.xml__ 中的全局配置类型。
+
+<<example-using-validateonexecution>> ”展示了如何使用 `@ValidateOnExecution` 注解: 
+
+[[example-using-validateonexecution]]
+.使用 `@ValidateOnExecution`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/methodvalidation/configuration/RentalStation.java[tags=include]
+----
+====
+
+这里不会在调用时校验 `rentCar()` 方法，因为它注解了 `@ValidateOnExecution(type = ExecutableType.NONE)` 。相比之下，构造函数和方法 `getAvailableCars()` 将由于在类型级别上给出了 `@ValidateOnExecution(type =
+ExecutableType.ALL)` 而得到校验。 `ExecutableType.ALL` 是一种更加紧凑的形式，用于显式地指定所有类型 `CONSTRUCTORS`, `GETTER_METHODS` 和 `NON_GETTER_METHODS`。
+
+
+[TIP]
+====
+可执行校验可以通过在  _META-INF/validation.xml_ 中指定 `<executable-validation enabled="false"/>`  来全局关闭。在这种情况下，所有 `@ValidateOnExecution` 注解都会被忽略。
+====
+
+注意，当一个方法覆盖或实现一个超类型方法时，配置将从该覆盖或实现的方法中获取(通过 `@ValidateOnExecution` 在该方法本身或超类型上给出)。这可以保护 super-type 方法的客户端免受配置的意外更改，例如禁用子类型中重写的可执行文件的校验。
+
+如果 CDI 管理的 bean 覆盖或实现了一个超类型方法，而这个超类型方法承载了任何约束，那么可能会发生校验拦截器没有正确地注册到 bean，导致在调用时没有对 bean 的方法进行校验。在这种情况下，您可以在子类上指定 `IMPLICIT` 类型，如<<example-using-executabletype-implicit>> ，它确保发现所有需要的元数据，并在调用 `ExpressRentalStation` 上的方法时启用校验拦截器。
+
+[[example-using-executabletype-implicit]]
+.使用 `ExecutableType.IMPLICIT`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/methodvalidation/implicit/RentalStation.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/cdi/methodvalidation/implicit/ExpressRentalStation.java[tags=include]
+----
+====
+
+
+=== Java EE
+
+当您的应用程序在 Java EE 应用程序服务器( http://wildfly.org/[WildFly])上运行时，您还可以通过管理对象(如 EJBs 等)中的 `@Resource` 注入获得 `Validator` 和 `ValidatorFactory`  实例，如<<example-validator-resource-injection>>所示。
+
+[[example-validator-resource-injection]]
+.通过 `@Resource` 注解注入 `Validator` 和 `ValidatorFactory`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter11/javaee/RentalStationBean.java[tags=include]
+----
+====
+
+或者，您可以分别以 "_java:comp/Validator_" 和 "_java:comp/ValidatorFactory_" 的名称从 JNDI 获得校验器和校验器工厂。
+
+类似于通过 `@Inject` 实现的基于 cdi 的注入，这些对象表示默认的校验器和校验器工厂，因此可以使用 XML 描述符 _META-INF/validation.xml_ (参见<<chapter-xml-configuration>>)进行配置。
+
+当您的应用程序启用了 cdi 时，注入的对象也可以感知到 cdi，例如，在约束校验器中支持依赖注入。
+
+=== JavaFX
+
+Hibernate Validator 还支持对 JavaFX 属性进行展开。如果 JavaFX 出现在类路径上，那么 JavaFX 属性的 ``ValueExtractor``s 就会自动注册。有关示例和进一步讨论，请参见<<section-valueextraction-javafx>> 。

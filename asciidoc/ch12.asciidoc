@@ -1,0 +1,801 @@
+[[validator-specifics]]
+== Hibernate Validator 特性
+
+在本章中，您将学习如何使用 Hibernate Validator 提供的几个特性以及 Jakarta Bean Validation 规范定义的功能。这包括故障快速模式、编程约束配置的 API 和约束的布尔组合。
+
+新的 APIs 或 SPIs 被标记为 `org.hibernate.validator.Incubating` ，表示他们都正在发展。这意味着这些元素(例如包、类型、方法、常量等)可能在后续版本中被不兼容地改变或删除。鼓励使用酝酿中的 API/SPI 成员(这样开发团队就可以获得关于这些新特性的反馈) ，但是在升级到新版本的 Hibernate Validator 时，您应该准备更新代码，因为使用这些开发中的特性。
+
+[NOTE]
+====
+使用以下部分中描述的特性可能会导致应用程序代码在 Jakarta Bean Validation提供程序之间不可移植。
+====
+
+=== 公共 API
+
+但是，让我们首先来看看 Hibernate Validator 的公共 API。下面您可以找到属于这个 API 的所有包的列表以及它们的用途。请注意，当一个包是公共 API 的一部分时，它的子包不一定是这样。
+
+`org.hibernate.validator`::
+			Jakarta Bean Validation 引导机制(例如:验证提供程序，配置类)使用的类; 有关详细信息，请参阅<<chapter-bootstrapping>>。
+
+`org.hibernate.validator.cfg`, `org.hibernate.validator.cfg.context`, `org.hibernate.validator.cfg.defs`, `org.hibernate.validator.spi.cfg`::
+			Hibernate Validator 中有关约束声明的 fluent API。 在 `org.hibernate.validator.cfg` 中可以找到 `ConstraintMapping` 接口，在 `org.hibernate.validator.cfg.defs` 可以找到所有约束的定义，在 `org.hibernate.validator.spi.cfg` 中可以找到使用该 API 配置默认验证器工厂的回调。有关详细信息，请参阅<<section-programmatic-api>>。
+
+`org.hibernate.validator.constraints`, `org.hibernate.validator.constraints.br`, `org.hibernate.validator.constraints.pl`::
+			Hibernate Validator 提供的一些有用的自定义约束，以及 Jakarta Bean Validation 规范定义的内置约束; 这些约束在<<validator-defineconstraints-hv-constraints>>中有详细描述。
+
+`org.hibernate.validator.constraintvalidation`::
+			扩展的约束验证器上下文，允许为消息内插设置自定义属性。<<section-hibernateconstraintvalidatorcontext>> 描述了如何使用该特性。
+
+`org.hibernate.validator.group`, `org.hibernate.validator.spi.group`::
+			组序列提供程序特性允许您根据验证的对象状态定义动态默认组序列; 具体内容可以在<<section-default-group-class>>中找到。
+
+`org.hibernate.validator.messageinterpolation`, `org.hibernate.validator.resourceloading`, `org.hibernate.validator.spi.resourceloading`::
+			与约束消息插值相关的类; 第一个包包含 Hibernate Validator 的默认消息插值器 `ResourceBundleMessageInterpolator` 。后两个包提供 `ResourceBundleLocator` SPI，用于加载资源包(请参阅<<section-resource-bundle-locator>>)及其默认实现。
+
+`org.hibernate.validator.parameternameprovider`::
+			基于 Paranamer 库的 `ParameterNameProvider` ，见<<section-paranamer-parameternameprovider>>。
+
+`org.hibernate.validator.propertypath`::
+			对 `jakarta.validation.Path` 的扩展，参见<<section-extensions-path-api>>。
+
+`org.hibernate.validator.spi.constraintdefinition`::
+			用于以编程方式注册附加约束验证器的 SPI，请参阅<<section-constraint-definition-contribution>>。
+
+`org.hibernate.validator.spi.messageinterpolation`::
+			在插入约束违背消息时，可用于调整区域设置的分辨率的 SPI。参见<<section-locale-resolver>>。
+
+`org.hibernate.validator.spi.nodenameprovider`::
+			一个 SPI，可用于在构造属性路径时更改属性名称的解析方式。请参阅<<section-property-node-name-provider>>。
+
+[NOTE]
+====
+Hibernate Validator 的公共包分为两类: 实际的 API 部分是用来被用户程序 _invoked(调用)_ 或 _used(使用)_ 的(例如用于编程约束声明的 API 或自定义约束) ，而 SPI (服务提供者接口)包含的接口是用来被用户程序 _implemented(实现)_ 的(例如 `ResourceBundleLocator` )。
+====
+
+该表中没有列出的任何包都是 Hibernate Validator 的内部包，用户程序不能访问。这些内部软件包的内容可以在不通知的情况下从一个版本更改到另一个版本，因此可能会破坏任何依赖它的用户程序代码。
+
+[[section-fail-fast]]
+=== 快速失败模式
+
+使用快速失败模式，Hibernate Validator 允许在发生第一个约束冲突时从当前校验返回。这对于大型对象图的校验非常有用，因为您只对快速校验是否存在任何约束冲突感兴趣。
+
+<<example-using-fail-fast>> 展示了如何引导和使用失败快速启用的验证程序。
+
+[[example-using-fail-fast]]
+.使用快速失败模式
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/failfast/Car.java[tags=include]
+----
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/failfast/FailFastTest.java[tags=include]
+----
+====
+
+这里验证过的对象实际上不能同时满足 `Car` 类上声明的约束，然而校验调用只产生一个 `ConstraintViolation` ，因为启用了 fail fast 模式。
+
+[NOTE]
+====
+不能保证以何种顺序计算约束，即不确定返回的冲突是来自 `@NotNull` 还是 `@AssertTrue` 约束。如果需要，可以使用<<section-defining-group-sequences>>。
+====
+
+请参阅<<section-provider-specific-settings>>，了解启动验证程序时启用失败快速模式的不同方式。
+
+[[section-method-validation-prerequisite-relaxation]]
+=== 放宽类层次中方法校验的要求
+
+Jakarta Bean Validation 规范定义了一组前置条件，这些前置条件在定义类层次结构中方法的约束时适用。这些先决条件在 Jakarta Bean Validation 2.0规范的 {bvSpecUrl}#constraintdeclarationvalidationprocess-methodlevelconstraints-inheritance[section 5.6.5] 。请参阅本指南中的<<section-method-constraints-inheritance-hierarchies>>。
+
+根据规范，Jakarta Bean Validation 实现程序可以放松这些先决条件。使用 Hibernate Validator，您可以通过以下两种方式之一完成此操作。
+
+首先，你可以使用配置属性 _hibernate.validator.allow_parameter_constraint_override_ ， _hibernate.validator.allow_multiple_cascaded_validation_on_result_ 和  _hibernate.validator.allow_parallel_method_parameter_constraint_ 在 _validation.xml_ 文件中。参见 <<example-relaxing-method-validation-xml>> 。
+
+[[example-relaxing-method-validation-xml]]
+.通过属性在类层次结构中配置方法验证行为
+====
+[source, XML]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<validation-config
+        xmlns="https://jakarta.ee/xml/ns/validation/configuration"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="https://jakarta.ee/xml/ns/validation/configuration https://jakarta.ee/xml/ns/validation/validation-configuration-3.0.xsd"
+        version="3.0">
+    <default-provider>org.hibernate.validator.HibernateValidator</default-provider>
+
+    <property name="hibernate.validator.allow_parameter_constraint_override">true</property>
+    <property name="hibernate.validator.allow_multiple_cascaded_validation_on_result">true</property>
+    <property name="hibernate.validator.allow_parallel_method_parameter_constraint">true</property>
+</validation-config>
+----
+====
+
+或者，可以在编程引导期间应用这些设置。
+
+[[example-relaxing-method-validation]]
+.在类层次结构中配置方法验证行为
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/relaxation/RelaxationTest.java[tags=testRelaxation]
+----
+====
+
+默认情况下，所有这些属性都是 false，实现 Jakarta Bean Validation 规范中定义的默认行为。
+
+[WARNING]
+====
+改变方法校验的默认行为将导致不符合规范和不可移植的应用程序。确保理解您正在做什么，并且您的用例确实需要对默认行为进行更改。
+====
+
+[[section-programmatic-api]]
+=== 可编程约束的定义和声明
+
+根据 Jakarta Bean Validation 规范，您可以使用 Java 注解和基于 XML 的约束映射来定义和声明约束。
+
+此外，Hibernate Validator 提供了一个 fluent API，允许对约束进行编程配置。用例包括在运行时动态添加约束，这取决于一些应用程序状态或测试，在这些测试中，您需要在不同场景中具有不同约束的实体，但是不希望为每个测试用例实现实际的 Java 类。
+
+默认情况下，通过 fluent API 添加的约束是通过标准配置功能配置的约束的附加物。但是也可以在需要时忽略注解和 XML 配置的约束。
+
+API 以 `ConstraintMapping` 接口为中心。您可以通过 `HibernateValidatorConfiguration#createConstraintMapping()` 方法获得一个新的映射，然后以fluent的方式进行配置，如示例<<example-constraint-mapping>>所示。
+
+[[example-constraint-mapping]]
+.编程实现约束声明
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=constraintMapping]
+----
+====
+
+可以使用方法链在多个类和属性上配置约束。约束定义类 `NotNullDef` 和 `SizeDef` 是帮助器类，允许以类型安全的方式配置约束参数。定义类存在于 `org.hibernate.validator.cfg.defs` 包中的所有内置约束。通过调用 `ignoreAnnotations()` ，对于给定的元素，通过注解 或 XML 配置的任何约束都会被忽略。
+
+[NOTE]
+====
+每个元素(类型、属性、方法等)只能在用于设置一个验证器工厂的所有约束映射中配置一次。否则将抛出  `ValidationException` 异常。
+====
+
+[NOTE]
+====
+不支持通过配置子类型向非重写的超类型属性和方法添加约束。在这种情况下，您需要配置超类型。
+====
+
+配置了映射之后，必须将其添加回配置对象，然后可以从中获得验证器工厂。
+
+对于自定义约束，您可以创建自己的扩展 `ConstraintDef` 的定义类，也可以使用  `GenericConstraintDef` ，如<<example-generic-constraint-mapping>>中所示。
+
+[[example-generic-constraint-mapping]]
+.自定义约束的编程声明
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=genericConstraintDef]
+----
+====
+
+使用 `containerElementType()` ，编程 API 支持容器元素约束。
+
+<<example-nested-container-element-constraints>> 展示了一个在嵌套容器元素上声明约束的例子。
+
+[[example-nested-container-element-constraints]]
+.嵌套容器元素约束的编程声明
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=nestedContainerElementConstraint]
+----
+====
+
+如前所述，传递给 `containerElementType()` 的参数是用于获取所需嵌套容器元素类型的类型变量索引的路径。
+
+通过调用 `valid()` ，您可以为级联验证标记一个成员，这相当于用 `@Valid` 对其进行注释。使用 `convertGroup()` 方法配置要在级联验证期间应用的任何组转换(相当于 `@ConvertGroup`)。请参阅 <<example-cascading-constraints>>。
+
+[[example-cascading-constraints]]
+.为级联校验标记属性
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=cascaded]
+----
+====
+
+不仅可以使用 fluent API 配置 bean 约束，还可以使用方法和构造函数约束。如<<example-method-constraint-mapping>> 构造函数通过其参数类型和方法的名称和参数类型来标识。选择了方法或构造函数之后，可以标记其参数和/或级联验证的返回值，并添加约束和交叉参数约束。
+
+如示例所示，还可以对容器元素类型调用 `valid()` 。
+
+[[example-method-constraint-mapping]]
+.方法和构造函数约束的编程声明
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=executableConfiguration]
+----
+====
+
+最后但并非最不重要的是，您可以配置默认组序列或类型的默认组序列提供程序，如下面的示例所示。
+
+[[example-sequences]]
+.默认组序列和默认组序列提供程序的配置
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=defaultGroupSequence]
+----
+====
+
+[[section-programmatic-api-contributor]]
+=== 将程序化的约束声明应用到默认的验证器工厂
+
+如果您没有手动启动验证器工厂，而是使用通过 _META-INF/validation.xml_ 配置的默认工厂(参见<<chapter-xml-configuration>>) ，则可以通过创建一个或多个约束映射贡献者来添加一个或多个约束映射。为此，实现 `ConstraintMappingContributor` 契约:
+
+[[example-constraint-mapping-contributor]]
+.自定义 `ConstraintMappingContributor` 的实现
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/MyConstraintMappingContributor.java[tags=include]
+----
+====
+
+然后，您需要使用属性键 `hibernate.validator.constraint_mapping_contributors` 在  _META-INF/validation.xml_ 中指定贡献者实现的完全限定类名。可以通过用逗号分隔多个贡献者来指定它们。
+
+[[section-advanced-constraint-composition]]
+=== 高级约束组合特性
+
+==== 纯组合约束的验证目标规范
+
+如果您在方法声明中指定了一个纯粹的组合约束——即一个本身没有验证程序但仅由其他组合约束组成的约束——验证引擎无法确定该约束是作为返回值约束还是作为交叉参数约束应用。
+
+Hibernate Validator 允许通过在组合约束类型的声明上指定 `@SupportedValidationTarget` 注释来解决这种模糊性，如<<example-purely-composed-constraint-validation-target>> 。 `@ValidInvoiceAmount` 不声明任何验证器，但它完全由 `@Min` 和 `@NotNull` 约束组成。 `@SupportedValidationTarget` 确保在方法声明中给出约束时，约束应用于方法返回值。
+
+[[example-purely-composed-constraint-validation-target]]
+.指定纯组合约束的验证目标
+====
+[source, JAVA]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/purelycomposed/ValidInvoiceAmount.java[tags=include]
+----
+====
+
+[[section-boolean-constraint-composition]]
+==== 布尔约束组合
+
+Jakarta Bean Validation 指定组合约束的约束(参见<<section-constraint-composition>>)都通过逻辑 _AND_ 进行组合。这意味着所有组合约束都需要返回 true 才能获得全面成功的验证。
+
+Hibernate Validator 为此提供了扩展，并允许您通过逻辑 _OR_ 或 _NOT_ 来组合约束。为此，必须使用 constraint composition 注释和 enum CompositionType 及其值 _AND_ 、 _OR_  和 _$$ALL_FALSE$$_ 。
+
+<<example-boolean-constraint-composition>> 展示了如何构建一个组合约束 `@PatternOrSize` ，其中只有一个组合约束是有效的，才能通过验证。验证过的字符串要么全部采用小写格式，要么长度在两到三个字符之间。
+
+[[example-boolean-constraint-composition]]
+.OR 约束的组合
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/booleancomposition/PatternOrSize.java[tags=include]
+----
+====
+
+[TIP]
+====
+使用 _$$ALL_FALSE$$_ 作为组合类型隐式地强制在约束组合验证失败的情况下只报告一个违反。
+====
+
+[[section-extensions-path-api]]
+=== 拓展 Path API
+
+Hibernate Validator 提供了对 `jakarta.validation.Path` API的扩展。对于  `ElementKind.PROPERTY` 和 `ElementKind.CONTAINER_ELEMENT` 节点，它允许获取表示的属性的值。为此，将给定节点缩小到 `org.hibernate.validator.path.PropertyNode` 类型。或 `org.hibernate.validator.path.ContainerElementNode` 。分别使用 `Node#as()` 作为 ，如下例所示:
+
+[[example-property-node-get-value]]
+.从属性节点获取值
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/propertypath/PropertyPathTest.java[tags=include]
+----
+====
+
+这对于获取属性路径上的 `Set` 属性元素(例如示例中的 `apartments` )也非常有用，否则无法识别(与 `Map` 和 `List` 不同，在这种情况下没有键或索引)。
+
+[[section-dynamic-payload]]
+=== 动态有效载荷作为 `ConstraintViolation`
+
+在某些情况下，如果违反约束提供了额外的数据——所谓的动态有效负载，则违反的自动处理可以得到帮助。例如，这个动态有效负载可能包含对用户如何解决冲突的提示。
+
+可以使用 `HibernateConstraintValidatorContext` 在 <<validator-customconstraints,custom constraints>> 中设置动态有效负载。在 <<example-constraint-validator-setting-dynamic-payload>> ，其中 `jakarta.validation.ConstraintValidatorContext` 。为了调用 `withDynamicPayload` ，ConstraintValidatorContext 被解包到 `HibernateConstraintValidatorContext` 。
+
+[[example-constraint-validator-setting-dynamic-payload]]
+.`ConstraintValidator` 实现设置动态有效负载
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/dynamicpayload/ValidPassengerCountValidator.java[tags=include]
+----
+====
+
+在违反约束处理端，有一个 `jakarta.validation.ConstraintViolation` 。然后可以反过来将 解包为 `HibernateConstraintViolation` ，以便为进一步处理检索动态有效负载。
+
+[[example-retrieving-dynamic-payload]]
+.检索 ``ConstraintViolation``'s 动态有效载荷
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/dynamicpayload/DynamicPayLoadTest.java[tags=include]
+----
+====
+
+[[el-features]]
+=== 启用EL表达式语言功能
+
+Hibernate 验证器限制默认情况下公开的表达式语言特性。
+
+为此，我们在 `ExpressionLanguageFeatureLevel` 中定义了几个特征级别:
+
+* `NONE`: 表达式语言插值完全禁用。
+* `VARIABLES`: 允许通过 `addExpressionVariable()` 插入变量、资源包和 `formatter` 程序对象的使用。
+* `BEAN_PROPERTIES`: 允许所有 `VARIABLES` 都允许加上 BEAN 属性的插值。
+* `BEAN_METHODS`: 也允许执行 BEAN 方法。这可能会导致严重的安全问题，包括如果不仔细处理就会任意执行代码。
+
+根据上下文，我们展示的特性是不同的:
+
+* 对于约束，默认级别为 `BEAN_PROPERTIES` 。要正确插入所有内置约束消息，您至少需要 `VARIABLES` 级别。
+* 对于通过 `ConstraintValidatorContext` 创建的自定义违规，默认情况下禁用 Expression Language。您可以为特定的自定义违规启用它，当启用时，它将默认为 `VARIABLES` 。
+
+Hibernate Validator 提供了在启动 `ValidatorFactory` 时覆盖这些默认值的方法。
+
+要更改约束的 Expression Language 特性级别，请使用以下命令:
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/el/ElFeaturesTest.java[tags=constraints]
+----
+
+要更改用于自定义违规的表达式语言特性级别，请使用以下命令:
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/el/ElFeaturesTest.java[tags=customViolations]
+----
+
+[CAUTION]
+====
+这样做将自动为应用程序中的所有自定义违规启用表达式语言。
+
+它应该只用于兼容性和简化从旧版本 Hibernate 验证器的迁移。
+====
+
+还可以使用以下属性定义这些级别:
+
+* `hibernate.validator.constraint_expression_language_feature_level`
+* `hibernate.validator.custom_violation_expression_language_feature_level`
+
+这些属性的可接受值是: `none`, `variables`, `bean-properties` 和 `bean-methods`.
+
+[[non-el-message-interpolator]]
+=== `ParameterMessageInterpolator`
+
+Hibernate Validator 要求每个默认情况下都有一个统一 EL 的实现(参见<<validator-gettingstarted-uel>> )。这是允许使用 Jakarta Bean Validation 规范定义的 EL 表达式插值约束错误消息所需的。
+
+对于不能或不希望提供 EL 实现的环境，Hibernate Validator 提供了一个非 EL 的消息内插器- `org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator` 。
+
+请参阅<<section-custom-message-interpolation>>，了解如何插入自定义消息插值器实现。
+
+[WARNING]
+====
+包含 EL 表达式的约束消息将通过 `org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator` 返回未插入的消息。这也会影响使用 EL 表达式的内置默认约束消息。目前， `DecimalMin` 和 `DecimalMax` 受到影响。
+====
+
+=== `ResourceBundleLocator`
+
+通过 `ResourceBundleLocator` ，Hibernate Validator 提供了一个额外的 SPI，它允许从  _ValidationMessages_ 之外的其他资源包中检索错误消息，同时仍然使用规范定义的实际插值算法。请参阅<<section-resource-bundle-locator>>，以了解如何使用该 SPI。
+
+[[section-locale-resolver]]
+=== 自定义语言环境解析
+
+[WARNING]
+====
+这些合同被标记为 `@Incubating` ，因此它们在未来可能会发生变化。
+====
+
+Hibernate Validator 提供了几个扩展点来构建自定义语言环境解析策略。在插入违反约束的消息时使用已解析的区域设置。
+
+Hibernate Validator 的默认行为是始终使用系统默认语言环境(通过 `Locale.getDefault()` 获得)。例如，如果您通常将系统区域设置为  `en-US` ，但希望应用程序提供法语消息，那么这可能不是理想的行为。
+
+下面的示例演示如何将 Hibernate Validator 缺省语言环境设置为 `fr-FR`:
+
+[[example-configure-default-locale]]
+.配置默认语言环境
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/localization/LocalizationTest.java[tags=default-locale]
+----
+====
+
+虽然这已经是一个很好的改进，但是在一个完全国际化的应用程序中，这是不够的: 您需要 Hibernate Validator 来根据用户上下文选择区域设置。
+
+Hibernate Validator 提供了 `org.hibernate.validator.spi.messageinterpolation.LocaleResolver` SPI，它允许微调区域设置的分辨率。通常，在 JAX-RS 环境中，您可以从 `Accept-Language` HTTP 头解析要使用的语言环境。
+
+在下面的示例中，我们使用硬编码的值，但是，举例来说，在 RESTEasy 应用程序的情况下，您可以从  `ResteasyContext` 中提取标头。
+
+[[example-locale-resolver]]
+.对用于通过 `LocaleResolver`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/localization/LocalizationTest.java[tags=locale-resolver]
+----
+====
+
+[NOTE]
+====
+在使用 `LocaleResolver` 时，必须通过 `locales()` 方法定义受支持的区域设置列表。
+====
+
+=== 自定义上下文
+
+Jakarta Bean Validation 规范在其 API 的几个方面提供了打开给定接口到特定实现子类型的可能性。在 `ConstraintValidator` 实现中创建约束冲突的情况下，以及在 `MessageInterpolator` 实例中创建消息插值的情况下，为所提供的上下文实例存在 `unwrap()` 方法—— `ConstraintValidatorContext` `MessageInterpolatorContext`。Hibernate Validator 为这两个接口提供自定义扩展。
+
+[[section-hibernateconstraintvalidatorcontext]]
+==== `HibernateConstraintValidatorContext`
+
+[[section-custom-constraint-validator-context]]
+`HibernateConstraintValidatorContext` 是 `ConstraintValidatorContext` 的一个子类型，它允许你:
+
+* 启用表达式语言插值为一个特定的自定义冲突-见下面
+* 使用 `HibernateConstraintValidatorContext#addExpressionVariable(String, Object)` 或 `HibernateConstraintValidatorContext#addMessageParameter(String, Object)` 通过 Expression Language 消息插值工具设置插值的任意参数。
++
+[[example-custom-expression-variable]]
+.自定义 `@Future`  注入表达式变量的验证程序
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/context/MyFutureValidator.java[tags=include]
+----
+====
++
+[[example-custom-message-parameter]]
+.自定义 `@Future` 注入消息参数的验证程序
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/context/MyFutureValidatorMessageParameter.java[tags=include]
+----
+====
++
+[NOTE]
+====
+除了语法之外，消息参数和表达式变量之间的主要区别在于消息参数是简单的插值，而表达式变量是使用表达式语言引擎解释的。实际上，如果不需要表达式语言的高级特性，可以使用消息参数。
+====
++
+[NOTE]
+====
+注意，通过 `addExpressionVariable(String, Object)` 和 `addMessageParameter(String, Object)` 指定的参数是全局的，并且应用于此 `isValid()` 调用创建的所有违反约束的情况。这包括违反缺省约束，但也包括 `ConstraintViolationBuilder` 创建的所有违反。但是，您可以在 `ConstraintViolationBuilder#addConstraintViolation()` 的调用之间更新参数。
+====
+* 设置一个任意的动态有效负载——参见 <<section-dynamic-payload>>
+
+默认情况下，表达式语言插值是 **disabled** 自定义违反，这是为了避免任意代码执行或敏感的数据泄漏，如果消息模板是从不正确的转义用户输入构建的。
+
+通过使用 `enableExpressionLanguage()` ，可以为给定的自定义违规启用 Expression Language，如下面的示例所示:
+
+[source]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter06/elinjection/SafeValidator.java[tags=include]
+----
+
+在这种情况下，消息模板将由 Expression Language 引擎插入。
+
+默认情况下，启用表达式语言时只启用变量插值。
+
+你可以通过使用 `HibernateConstraintViolationBuilder#enableExpressionLanguage(ExpressionLanguageFeatureLevel level)` 来启用更多功能。
+
+我们为表达式语言插值定义了几个级别的特性:
+
+* `NONE`: 表达式语言插值是完全禁用-这是默认的自定义违反。
+* `VARIABLES`: 允许通过 `addExpressionVariable()` 插入变量、资源包和 `formatter` 程序对象的使用。
+* `BEAN_PROPERTIES`: 允许所有 `VARIABLES` 都允许加上 BEAN 属性的插值。 
+* `BEAN_METHODS`: 也允许执行 BEAN 方法。这可能会导致严重的安全问题，包括如果不仔细处理就会任意执行代码。
+
+[CAUTION]
+====
+使用 `addExpressionVariable()` 是将变量注入到表达式中的唯一安全方法，如果使用 `BEAN_PROPERTIES` 或 `BEAN_METHODS` 特性级别，这一点尤为重要。
+
+如果你通过简单地将用户输入连接到消息中来注入用户输入，你将允许潜在的任意代码执行和敏感的数据泄漏: 如果用户输入包含有效的表达式，它们将被表达式语言引擎执行。
+
+这里有一个你 **ABSOLUTELY NOT(绝对不能做)** 的事情的例子:
+
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter06/elinjection/UnsafeValidator.java[tags=include]
+----
+
+在上面的示例中，如果 `value` (可能是用户输入)包含有效的表达式，则表达式语言引擎将对其进行插值，从而可能导致不安全的行为。
+====
+
+==== `HibernateMessageInterpolatorContext`
+
+Hibernate Validator 还提供了一个自定义扩展 `MessageInterpolatorContext` ，即 `HibernateMessageInterpolatorContext` (参见<<example-custom-message-interpolator-context>> )。引入这个子类型是为了将 Hibernate Validator 更好地集成到 Glassfish 中。在这种情况下，需要根 bean 类型来确定消息资源束的正确类装入器。如果您有任何其他用例，请让我们知道。
+
+[[example-custom-message-interpolator-context]]
+.`HibernateMessageInterpolatorContext`
+====
+[source, JAVA, indent=0]
+----
+include::{engine-sourcedir}/org/hibernate/validator/messageinterpolation/HibernateMessageInterpolatorContext.java[lines=22..58]
+----
+====
+
+[[section-paranamer-parameternameprovider]]
+=== 基于 Paranamer 的 `ParameterNameProvider`
+
+Hibernate Validator 附带了一个利用 http://paranamer.codehaus.org/[Paranamer] 库的 `ParameterNameProvider` 实现。
+
+这个库提供了几种在运行时获取参数名的方法，例如，基于 Java 编译器创建的调试符号，在编译后的步骤中将带有参数名的常量编织到字节码中，或者像 JSR 330的 `@Named` 注释这样的注释。
+
+为了使用 `ParanamerParameterNameProvider` ，要么在引导验证程序时传递一个实例，如<<example-using-custom-parameter-name-provider>> ，要么指定 `org.hibernate.validator.parameternameprovider.ParanamerParameterNameProvider` 作为 _META-INF/validation.xml_ 文件中 `&lt;parameter-name-provider&gt;` 元素的值。
+
+[TIP]
+====
+使用此参数名提供程序时，需要将 Paranamer 库添加到类路径中。它可以在 Maven Central 存储库中获得，该存储库的组 id 为 `com.thoughtworks.paranamer` ，工件 id 为 `paranamer` 。
+====
+
+默认情况下， `ParanamerParameterNameProvider` 从构建时添加到字节码的常量(通过  `DefaultParanamer` )和调试符号(通过 `BytecodeReadingParanamer` )中检索参数名。或者，您可以在创建 `ParanamerParameterNameProvider` 实例时指定所选择的 `Paranamer` 实现。
+
+[[section-constraint-definition-contribution]]
+=== 提供约束定义
+
+Jakarta Bean Validation 允许(重新)通过 XML 在其约束映射文件中定义约束定义。有关更多信息，请参阅<<section-mapping-xml-constraints>> ，并参阅<<example-constraints-car>> 。虽然这种方法对于许多用例来说已经足够了，但是在其他用例中它还是有缺点的。例如，假设有一个约束库希望为自定义类型提供约束定义。这个库可以提供一个带有它们库的映射文件，但是这个文件仍然需要库的用户引用。幸运的是，还有更好的方法。
+
+[NOTE]
+====
+下面的概念目前被认为是实验性的。让我们知道你是否认为他们有用，他们是否满足你的需要。
+====
+
+==== 通过 `ServiceLoader` 实现约束的定义
+
+Hibernate Validator 允许利用 Java 的
+{javaApiDocsUrl}?java/util/ServiceLoader.html[ServiceLoader]
+机制来注册附加的约束定义。您所要做的就是添加 _jakarta.validation.ConstraintValidator_ 文件。到 _META-INF/services_ 。在此服务文件中，列出约束验证器类的完全限定类名(每行一个)。Hibernate Validator 将自动推断它们应用于的约束类型。请通过<<example-using-service-file-for-constraint-definitions,Constraint definition via service file>> 查看约束定义的示例。
+
+[[example-using-service-file-for-constraint-definitions]]
+._META-INF/services/jakarta.validation.ConstraintValidator_
+====
+[source]
+----
+# Assuming a custom constraint annotation @org.mycompany.CheckCase
+org.mycompany.CheckCaseValidator
+----
+====
+
+要为自定义约束贡献默认消息，请在 JAR 的根目录中放置一个文件 _ContributorValidationMessages.properties_ 和/或其特定于区域设置的专门化。Hibernate Validator 将考虑除 _ValidationMessages.properties_ 中给出的条目之外，在类路径中发现的所有绑定包中具有此名称的条目。
+
+这种机制在创建大型多模块应用程序时也很有帮助: 您可以在每个模块中使用一个资源包，而不是将所有约束消息放到一个包中，而只包含该模块的那些消息。
+
+[NOTE]
+====
+我们强烈推荐阅读 http://in.relation.to/2017/03/02/adding-custom-constraint-definitions-via-the-java-service-loader/[this blog post by Marko Bekhta] ，指导你一步一步地创建一个包含自定义约束并通过 `ServiceLoader` 声明它们的独立 JAR。
+====
+
+[[section-programmatic-constraint-definition]]
+==== 以编程方式添加约束定义
+
+虽然服务加载器方法可以在许多场景中工作，但并不适用于所有场景(例如，在服务文件不可见的 OSGi 中) ，但还有另一种贡献约束定义的方法。可以使用编程式约束声明 API ——请参见<<example-using-constraint-definition-api>> 。
+
+[[example-using-constraint-definition-api]]
+.通过编程 API 添加约束定义
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=constraintDefinition]
+----
+====
+
+如果你的验证器实现相当简单(比如不需要注释的初始化，也不需要 `ConstraintValidatorContext` ) ，你也可以使用这个替代 API 来指定使用 Lambda 表达式或方法引用的约束逻辑:
+
+[[example-using-constraint-definition-api-lambda]]
+.使用 Lambda 表达式添加约束定义
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=constraintDefinitionUsingLambda]
+----
+====
+
+与直接向配置对象添加约束映射不同，您可以使用 `ConstraintMappingContributor` ，详见<<section-programmatic-api-contributor>> 。这在使用 _META-INF/validation.xml_ 配置默认验证器工厂时非常有用(参见<<chapter-xml-configuration>>)。
+
+[TIP]
+====
+通过编程 API 注册约束定义的一个用例是能够为 `@URL` 约束指定替代约束验证器。从历史上看，Hibernate Validator 针对此约束的默认约束验证器使用 `java.net.URL` 构造函数来验证 URL。然而，也有一个纯粹的基于正则表达式的版本，可以使用 `ConstraintDefinitionContributor` 进行配置:
+
+.使用编程约束声明 API 注册基于正则表达式的约束定义 `@URL`
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/constraintapi/ConstraintApiTest.java[tags=urlValidationOverride]
+----
+====
+
+[[section-constraint-customizing-class-loading]]
+=== 自定义类加载
+
+在以下几种情况下，Hibernate Validator 需要加载按名称给出的资源或类:
+
+* XML 描述符 (_META-INF/validation.xml_ 以及 XML 约束映射)
+* 在 XML 描述符中通过名称指定的类(例如自定义消息内插器等)
+* _ValidationMessages_ 资源包
+* 用于基于表达式的消息插值的 `ExpressionFactory` 实现
+
+默认情况下，Hibernate Validator 尝试通过当前线程上下文类加载器加载这些资源。如果不成功，Hibernate Validator 自己的类装入器将作为后备尝试。
+
+对于这种策略不合适的情况(例如，模块化的环境，如 OSGi) ，你可以在启动验证器工厂时提供一个特定的类加载器来加载这些资源:
+
+[[example-using-external-class-loader]]
+.提供一个类加载器来加载外部资源和类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/classloading/ClassLoadingTest.java[tags=setupValidator]
+----
+====
+
+在 OSGi 的情况下，你可以从绑定包引导 Hibernate Validator 中传递类的加载器，或者传递一个自定义类加载器实现到 `Bundle#loadClass()` 等等。
+
+[NOTE]
+====
+如果不再需要给定的验证器工厂实例，则调用 `ValidatorFactory#close()` 。如果重新部署应用程序/捆绑包，并且应用程序代码仍然引用非关闭的验证程序工厂，则未能这样做可能会导致类装入器泄漏。
+====
+
+[[section-getter-property-selection-strategy]]
+=== 自定义 getter 属性选择策略
+
+当使用 Hibernate Validator 验证 bean 时，将验证其属性。属性既可以是字段，也可以是 getter。默认情况下，Hibernate Validator 尊重 javabean 规范，只要下面的条件之一是真实的，Hibernate Validator 就会考虑一个方法作为 getter:
+
+- 方法名以 `get` 开头，具有非空返回类型且没有参数;
+- 方法名以 `is` 开头，具有 `boolean` 的返回类型，且没有参数;
+- 方法名以 `has` 开头，返回 `boolean` 类型，没有参数(这个规则是特定于 Hibernate Validator 的，javabean 规范没有强制要求)
+
+虽然这些规则在遵循经典 JavaBeans 约定时通常是适当的，但是它可能会发生，特别是在代码生成器中，JavaBeans 变数命名原则不遵循，而 getter 的名称遵循不同的约定。
+
+在这种情况下，应该重新定义检测 getter 的策略，以便完全验证对象。
+
+这个需求的一个典型例子是当类遵循一个流畅的变数命名原则时，如<<example-using-fluent-api-pattern>>。
+
+[[example-using-fluent-api-pattern]]
+.使用非标准 getter 的类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/getterselectionstrategy/User.java[tags=include]
+----
+====
+
+如果验证了这样的对象，则不会对 getter 执行验证，因为标准策略没有检测到它们。
+
+.使用默认 getter 属性选择策略验证具有非标准 getter 的类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/getterselectionstrategy/GetterPropertySelectionStrategyTest.java[tags=no-strategy]
+----
+====
+
+为了让 Hibernate Validator 将这些方法视为属性，应该配置一个自定义的 `GetterPropertySelectionStrategy` 。在这种特殊情况下，可能执行的战略是:
+
+.自定义 `GetterPropertySelectionStrategy` 实现
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/getterselectionstrategy/FluentGetterPropertySelectionStrategy.java[tags=include]
+----
+====
+
+有多种方法可以配置 Hibernate Validator 来使用这个策略。它可以通过编程方式完成(参见<<custom-getter-strategy-programmatically>> ) ，也可以在 XML 配置中使用 `hibernate.validator.getter_property_selection_strategy` 属性(参见<<custom-getter-strategy-xml>> )。
+
+[[custom-getter-strategy-programmatically]]
+.以编程方式配置自定义 `GetterPropertySelectionStrategy`
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/getterselectionstrategy/GetterPropertySelectionStrategyTest.java[tags=custom-strategy]
+----
+====
+
+[[custom-getter-strategy-xml]]
+.使用 XML 属性配置自定义 `GetterPropertySelectionStrategy`
+====
+[source, XML, indent=0]
+----
+include::{resourcesdir}/org/hibernate/validator/referenceguide/chapter12/getter-property-selection-strategy-validation.xml[]
+----
+====
+
+[WARNING]
+====
+在使用 `HibernateValidatorConfiguration#addMapping(ConstraintMapping)` 添加编程约束的情况下，添加映射应该始终在配置所需的 getter 属性选择策略之后进行。否则，默认策略将用于在定义策略之前添加的映射。
+====
+
+[[section-property-node-name-provider]]
+=== 自定义违反约束的属性名解析
+
+假设我们有一个简单的数据类，在某些字段上有 `@NotNull` 约束:
+
+[[example-person-class]]
+.Person 数据类
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/nodenameprovider/Person.java[tags=include]
+----
+====
+
+这个类可以通过 https://github.com/FasterXML/jackson[Jackson] 库序列化到 JSON:
+
+[[example-person-object-to-json]]
+.将 Person 对象序列化到 JSON
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/nodenameprovider/PersonSerializationTest.java[tags=include]
+----
+====
+
+正如我们看到的，对象被序列化为:
+
+[[example-person-json]]
+.Person as json
+====
+[source, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/nodenameprovider/clarkKent.json[]
+----
+====
+
+注意属性的名称是如何不同的。在 Java 对象中，我们有 `firstName`  和 `lastName` ，而在 JSON 输出中，我们有 `first_name` 和 `last_name` 。我们通过 `@JsonProperty` 注释定制了这种行为。
+
+现在假设我们在 REST 环境中使用这个类，其中用户可以在请求体中以 JSON 的形式发送 <<example-person-json, a `Person` instance as JSON>> 。在指示验证失败的字段时，最好指出他们在 JSON 请求中使用的 `first_name` ，而不是我们在内部 Java 代码中使用的名称，`firstName` 。
+
+`org.hibernate.validator.spi.nodenameprovider.PropertyNodeNameProvider` 契约允许我们这样做。通过实现它，我们可以定义在验证期间如何解析属性的名称。在我们的示例中，我们希望从 Jackson 配置中读取值。
+
+如何做到这一点的一个例子是利用 Jackson API:
+[[example-jackson-property-node-name-provider]]
+.JacksonPropertyNodeNameProvider 实现
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/nodenameprovider/JacksonPropertyNodeNameProvider.java[tags=include]
+----
+====
+
+在进行验证时:
+[[example-jackson-property-node-name-provider-field]]
+.JacksonPropertyNodeNameProvider 的使用
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/nodenameprovider/JacksonPropertyNodeNameProviderTest.java[tags=field]
+----
+====
+
+我们可以看到属性路径现在返回 `first_name` 。
+
+请注意，当注释在 getter 上时，这也是可行的:
+
+[[example-jackson-property-node-name-provider-getter]]
+.getter 上的注释
+====
+[source, JAVA, indent=0]
+----
+include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/nodenameprovider/JacksonPropertyNodeNameProviderTest.java[tags=getter]
+----
+====
+
+这只是我们为什么要更改属性名称解析方式的一个用例。
+
+`org.hibernate.validator.spi.nodenameprovider.PropertyNodeNameProvider` 以实现以您认为合适的任何方式提供属性名(例如，从注释中读取)。
+
+还有两个界面值得一提:
+
+- `org.hibernate.validator.spi.nodenameprovider.Property` 属性是保存有关属性的元数据的基接口。它只有一个 `String getName()` 方法，可用于获取属性的“original”名称。这个接口应该用作解析名称的默认方式(参见<<example-jackson-property-node-name-provider>>中如何使用它)。
+
+- `org.hibernate.validator.spi.nodenameprovider.JavaBeanProperty` 是一个接口，它包含有关 bean 属性的元数据。它扩展了 `org.hibernate.validator.spi.nodenameprovider.Property` 。属性，并提供一些附加方法，如 `Class<?> getDeclaringClass()` ，它返回属性所有者的类。
