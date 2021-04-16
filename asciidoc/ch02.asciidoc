@@ -1,11 +1,11 @@
 [[chapter-bean-constraints]]
 ==  声明和校验 bean 约束
 
-在本章中，您将学习如何声明 (see <<section-declaring-bean-constraints>>) 以及
-校验 (see <<section-validating-bean-constraints>>) bean 约束。
+在本章中，您将学习如何声明 (参见 <<section-declaring-bean-constraints>>) 以及
+校验 (参见 <<section-validating-bean-constraints>>) bean 约束。
 <<section-builtin-constraints>> 概述了 Hibernate Validator提供的所有内置约束。
 
-如果您对方法参数和返回值的约束校验感兴趣，请参阅 <<chapter-method-constraints>>.
+如果您对方法参数和返回值的约束校验感兴趣，请参阅 <<chapter-method-constraints>> 。
 
 [[section-declaring-bean-constraints]]
 === 声明 bean 约束
@@ -114,7 +114,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containere
 ----
 ====
 
-请注意，属性路径如何清楚地表明违规来自迭代器的元素。
+请注意，属性路径清楚地表明违规来自那个迭代器的元素。
 
 =====  `List`
 
@@ -138,7 +138,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containere
 
 ===== `Map`
 
-集合元素约束也在映射键和值上进行校验。
+集合元素约束也可以在map类型的键和值上进行校验。
 <<example-container-element-constraints-map>> 展示了一个 `Map` 的例子，对 key 和 value都进行校验。
 
 [[example-container-element-constraints-map]]
@@ -190,7 +190,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/containere
 
 集合元素约束也可以用于自定义集合。
 
-必须为自定义类型注册 `ValueExtractor` ，以允许检索要校验的值 (see <<chapter-valueextraction>> 以获得关于如何实现自己的 `ValueExtractor` 以及如何注册它的更多信息)。
+必须为自定义类型注册 `ValueExtractor` ，以允许检索要校验的值 (参见 <<chapter-valueextraction>> 以获得关于如何实现自己的 `ValueExtractor` 以及如何注册它的更多信息)。
 
 <<example-container-element-constraints-custom-container-type>> 展示了一个具有类型参数约束的自定义参数化类型的示例。
 
@@ -302,7 +302,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgrap
 ====
 
 如果校验了 `Car` ， 那么引用的 `Person` 对象也会被校验， 因为
-`driver` 字段使用了 `@Valid` 注解，。因此，如果引用的 `Person` 实例的 `name` 字段为 `null`，则 `Car` 的校验将失败。
+`driver` 字段使用了 `@Valid` 注解。因此，如果引用的 `Person` 实例的 `name` 字段为 `null`，则 `Car` 的校验将失败。
 
 对象图的校验是递归的，也就是说，如果一个标记为级联校验的引用指向一个对象，该对象本身具有带 `@valid` 注解的属性，校验引擎也会跟踪这些引用。校验引擎将确保在级联校验期间不会发生无限循环，例如，如果两个对象彼此保持引用。
 
@@ -356,7 +356,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/objectgrap
 [[section-obtaining-validator]]
 ==== 获取 `Validator` 实例
 
-校验实例的第一步是获得 `Validator` 实例。为获取这个实例的需要通过 `Validation` 类和  `ValidatorFactory` 。最简单的方法是使用静态方法 `Validation # builddefaultvalidatorfactory()` :
+校验实例的第一步是获得 `Validator` 实例。为获取这个实例的需要通过 `Validation` 类和  `ValidatorFactory` 。最简单的方法是使用静态方法 `Validation#builddefaultvalidatorfactory()` :
 
 .`Validation#buildDefaultValidatorFactory()`
 ====
@@ -366,7 +366,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation
 ----
 ====
 
-这将使用默认配置启动校验程序。请参阅 <<chapter-bootstrapping>> 以了解更多关于不同的 Bootstrapping 方法以及如何获得特定配置的 `Validator` 实例。
+这将使用默认配置启动校验程序。请参阅 <<chapter-bootstrapping>> 以了解更多关于不同的启动方法以及如何获得特定配置的 `Validator` 实例。
 
 ==== Validator 方法
 
@@ -423,7 +423,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation
 ====
 
 
-例如，`Validator#validateProperty()` 用于将 Jakarta Bean Validation 集成到 JSF 2中(see <<section-presentation-layer>>) ，以便对输入到表单中的值执行校验，然后将它们传播到模型中。
+例如，`Validator#validateProperty()` 用于将 Jakarta Bean Validation 集成到 JSF 2中(参见 <<section-presentation-layer>>) ，以便对输入到表单中的值执行校验，然后将它们传播到模型中。
 
 [[section-constraint-violation-methods]]
 
@@ -434,26 +434,24 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation
 现在是时候仔细研究一下什么是 `ConstraintViolation` 了。使用 `ConstraintViolation` 中不同的方法可以获取校验失败原因的许多有用信息。以下是这些方法的概述。
 列下的案例值引用了 <<example-validator-validate>>.
 
-`getMessage()`:: The interpolated error message
-	Example::: "must not be null"
-`getMessageTemplate()`:: The non-interpolated error message
-	Example::: "{... NotNull.message}"
-`getRootBean()`:: The root bean being validated
-	Example::: car
-`getRootBeanClass()`:: The class of the root bean being validated
-	Example::: `Car.class`
-`getLeafBean()`:: If a bean constraint， the bean instance the constraint is
-             applied on; if a property constraint， the bean instance hosting
-             the property the constraint is applied on
-	Example::: `car`
-`getPropertyPath()`:: The property path to the validated value from root bean
-	Example::: contains one node with kind `PROPERTY` and name "manufacturer"
-`getInvalidValue()`:: The value failing to pass the constraint
-	Example::: `null`
-`getConstraintDescriptor()`:: Constraint metadata reported to fail
-	Example::: descriptor for `@NotNull`
+`getMessage()`:: 插值后产生的错误信息
+	示例::: "must not be null"
+`getMessageTemplate()`:: 未插值的模版信息
+	示例::: "{... NotNull.message}"
+`getRootBean()`:: 被校验的根bean
+	示例::: car
+`getRootBeanClass()`:: 被校验的根bean的类
+	示例::: `Car.class`
+`getLeafBean()`:: 如果是bean约束，则将获取到应用约束到bean实例；如果是属性约束，则将获取到托管该约束的属性的bean实例
+	示例::: `car`
+`getPropertyPath()`:: 根bean的校验值的属性路径
+	示例::: 约束的一个节点是 `PROPERTY` 类型，属性名为 "manufacturer"
+`getInvalidValue()`:: 导致校验失败的值
+	示例::: `null`
+`getConstraintDescriptor()`:: 导致校验失败的约束的元信息
+	示例::: `@NotNull` 约束的 descriptor
 
-===== 利用 property path
+===== 利用属性路径
 
 要确定触发冲突的原因，需要利用 `getPropertyPath()` 方法的返回值。
 
@@ -464,8 +462,8 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter02/validation
 [[section-builtin-constraints]]
 === 内置约束
 
-Hibernate Validator 包含一组常用的约束。这些都是 Jakarta Bean Validation 规范定义 (see <<validator-defineconstraints-spec>>)。
-此外，Hibernate Validator 还提供了在某些场景十分有用的自定义约束 (see
+Hibernate Validator 包含一组常用的约束。这些都是 Jakarta Bean Validation 规范定义 (参见 <<validator-defineconstraints-spec>>)。
+此外，Hibernate Validator 还提供了在某些场景十分有用的自定义约束 (参见
 <<validator-defineconstraints-hv-constraints>>)。
 
 [[validator-defineconstraints-spec]]
@@ -609,7 +607,7 @@ Hibernate Validator 允许将一些约束应用于更多的数据类型，而不
 	支持的数据类型::: `CharSequence`
 	Hibernate 元数据影响::: None
 
-`@LuhnCheck(startIndex= ， endIndex=， checkDigitIndex=， ignoreNonDigitCharacters=)`:: 检查带注解的字符序列中的数字是否通过 Luhn 校验和算法 (see also http://en.wikipedia.org/wiki/Luhn_algorithm[Luhn algorithm]). `startIndex` 和 `endIndex` 只允许在指定的子字符串上运行算法。 `checkDigitIndex` 允许使用字符序列中的任意数字作为校验数字。如果未指定，则假定检查数字是指定范围的一部分。最后但并非最不重要的是，`ignoreNonDigitCharacters` 允许忽略非数字字符。
+`@LuhnCheck(startIndex= ， endIndex=， checkDigitIndex=， ignoreNonDigitCharacters=)`:: 检查带注解的字符序列中的数字是否通过 Luhn 校验和算法 (参见 http://en.wikipedia.org/wiki/Luhn_algorithm[Luhn algorithm]). `startIndex` 和 `endIndex` 只允许在指定的子字符串上运行算法。 `checkDigitIndex` 允许使用字符序列中的任意数字作为校验数字。如果未指定，则假定检查数字是指定范围的一部分。最后但并非最不重要的是，`ignoreNonDigitCharacters` 允许忽略非数字字符。
 	支持的数据类型::: `CharSequence`
 	Hibernate 元数据影响::: None
 
@@ -637,7 +635,7 @@ Hibernate Validator 允许将一些约束应用于更多的数据类型，而不
 	支持的数据类型::: `Collection`
 	Hibernate 元数据影响::: None
 
-`@URL(protocol=， host=， port=， regexp=， flags=)`:: 根据 RFC2396检查带注解的字符序列是否为有效的 URL。如果指定了任何可选参数 `protocol`， `host` or `port` ，则相应的 URL 片段必须匹配指定的值。可选参数 `regexp` 和 `flags` 允许指定 URL 必须匹配的附加正则表达式(包括正则表达式标志)。根据默认情况，此约束使用 `java. net. URL` 构造函数校验给定字符串是否表示有效 URL。还有一个基于正则表达式的版本—— `RegexpURLValidator` ——可以通过 XML ( see <<section-mapping-xml-constraints>>) 或 (see <<section-programmatic-constraint-definition>>).
+`@URL(protocol=， host=， port=， regexp=， flags=)`:: 根据 RFC2396检查带注解的字符序列是否为有效的 URL。如果指定了任何可选参数 `protocol`， `host` or `port` ，则相应的 URL 片段必须匹配指定的值。可选参数 `regexp` 和 `flags` 允许指定 URL 必须匹配的附加正则表达式(包括正则表达式标志)。根据默认情况，此约束使用 `java. net. URL` 构造函数校验给定字符串是否表示有效 URL。还有一个基于正则表达式的版本—— `RegexpURLValidator` ——可以通过 XML ( 参见 <<section-mapping-xml-constraints>>) 或 (参见 <<section-programmatic-constraint-definition>>).
 	支持的数据类型::: `CharSequence`
 	Hibernate 元数据影响::: None
 

@@ -27,13 +27,10 @@
 
 这样也会同时引入依赖 Jakarta Bean Validation API (`jakarta.validation:jakarta.validation-api:{bvVersion}`)。 
 
-#( 译者注：hibernate-validator 依赖了 jakarta.validation-api ，所以引入 hibernate-validator 同时也会引入 jakarta.validation-api )#
-
 [[validator-gettingstarted-uel]]
 ==== 统一的EL表达式
 
-Hibernate Validator 需要一个 https://projects.eclipse.org/projects/ee4j.el[Jakarta Expression Language] 的实现，能够使用表达式动态计算校验结果 ( <<section-message-interpolation>>)。当您的应用程序在 Java EE 容器(如 JOSS AS )中运行时，相关容器已经提供了EL实现。 但是，在Java SE环境中，您必须将一个实现作为依赖项添加到您的POM文件。例如，您可以添加以下依赖项来使用 Jakarta EL https://github.com/eclipse-ee4j/el-ri[reference
-implementation]引用:
+Hibernate Validator 需要一个 https://projects.eclipse.org/projects/ee4j.el[Jakarta Expression Language] 的实现，能够使用表达式动态计算校验结果 ( <<section-message-interpolation>>)。当您的应用程序在 Java EE 容器(如 JOSS AS )中运行时，相关容器已经提供了EL实现。 但是，在Java SE环境中，您必须将一个实现作为依赖项添加到您的POM文件。例如，您可以添加以下依赖项来使用 Jakarta EL https://github.com/eclipse-ee4j/el-ri[参考实现]:
 
 .Maven引入EL的实现
 ====
@@ -117,7 +114,7 @@ grant codeBase "file:path/to/validation-caller-x.y.z.jar" {
 
 ==== 在 WildFly 中更新 Hibernate 校验器
 
-http://wildfly.org/[WildFly 应用程序服务器]包含开箱即用的 Hibernate Validator。为了将 Jakarta Bean Validation API 和 Hibernate Validator 的服务器模块更新为最新和最大的模块，可以使用 WildFly 的补丁机制。
+http://wildfly.org/[WildFly 应用程序服务器]包含开箱即用的 Hibernate Validator。为了将 Jakarta Bean Validation API 和 Hibernate Validator 服务模块更新为最新和最稳定的模块，可以使用 WildFly 的补丁机制。
 
 你可以从 http://sourceforge.net/projects/hibernate/files/hibernate-validator[SourceForge] 或者 使用以下依赖项从 Maven Central 下载修补程序文件:
 
@@ -175,12 +172,12 @@ $JBOSS_HOME/bin/jboss-cli.sh patch rollback --reset-configuration=true
 ----
 ====
 
-您可以在 https://developer.jboss.org/wiki/SingleInstallationPatching/[这里] 和 http://www.mastertheboss.com/jboss-server/jboss-configuration/managing-wildfly-and-eap-patches[这里]了解有关 WildFly 补丁基础信息。
+您可以在 https://developer.jboss.org/wiki/SingleInstallationPatching/[这里] 和 http://www.mastertheboss.com/jboss-server/jboss-configuration/managing-wildfly-and-eap-patches[这里]了解有关 WildFly 补丁的基础信息。
 
 [[validator-gettingstarted-java9]]
 ====  在 Java 9上运行
 
-从 Hibernate Validator {hvVersion}开始。最后，对 Java 9和 Java 平台模块系统(JPMS)的支持是实验性的。目前还没有提供 JPMS 模块描述符，但 Hibernate Validator 可以用作自动模块。
+从 Hibernate Validator {hvVersion} 开始便支持 Java 9。但是对 Java 9的模块化特性(JPMS)的支持是实验性的。目前还没有提供 JPMS 模块描述符，但 Hibernate Validator 目前可以用作自动模块。
 
 这些是使用 `Automatic-Module-Name` 头声明的模块名称:
 
@@ -190,7 +187,7 @@ $JBOSS_HOME/bin/jboss-cli.sh patch rollback --reset-configuration=true
 * Hibernate Validator test utilities: `org.hibernate.validator.testutils`
 * Hibernate Validator annotation processor: `org.hibernate.validator.annotationprocessor`
 
-这些模块名称是暂时的，在将来的版本中提供真正的模块描述符时可能会改变。
+这些模块名称是暂时的，在将来提供真正的模块描述符的版本中可能会改变。
 
 [[validator-gettingstarted-createmodel]]
 === 使用约束
@@ -206,12 +203,12 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter01/Car.java[]
 ----
 ====
 
-`@NotNull`, `@Size` 和 `@Min` 注解用于声明应该应用于 Car 实例字段的校验:
+`@NotNull`， `@Size` 和 `@Min` 注解用于声明应该应用于 Car 实例字段的校验:
 
 
 *  `manufacturer` 字段必须永远不能为 `null`
-*  `licensePlate` 字段不能为 `null` ，并且必须在2到14个字符之间
-*  `seatCount` 字段必须至少是2
+*  `licensePlate` 字段不能为 `null` ，并且长度必须在2到14个字符之间
+*  `seatCount` 字段值的大小必须至少是2
 
 [TIP]
 ====
@@ -232,12 +229,10 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter01/CarTest.ja
 ----
 ====
 
-#(译者注：大家在跑单元测试的时候可能会出错，因为做了本地化的处理。错误信息为中文字符与单元测试中的英文不匹配。后面的案例都可能出现类似情况，不再赘述。)#
-
 在 `setUp()` 方法中，使用 `ValidatorFactory` 获取一个 `Validator` 对象。 `Validator`
-实例是线程安全的，可以多次重用。因此，它可以安全地存储在一个静态变量中，并用于测试方法，以校验不同的 `Car` 实例.
+实例是线程安全的，可以多次重用。因此，可以将 `Validator` 做为一个静态变量安全地存储，并用于测试方法，以校验不同的 `Car` 实例。
 
-`validate()` 方法返回 `ConstraintViolation` 对象的 `Set` 集合, 您可以对其进行迭代操作，以查看发生了哪些校验错误。前三个测试方法显示了一些预期的违反约束的情况:
+`validate()` 方法返回 `ConstraintViolation` 对象的 `Set` 集合， 您可以对其进行迭代操作，以查看发生了哪些校验错误。前三个测试方法显示了一些预期的违反约束的情况:
 
 
 * 在 `manufacturerIsNull()` 方法中，违反了 `manufacturer` 字段的 `@NotNull` 约束

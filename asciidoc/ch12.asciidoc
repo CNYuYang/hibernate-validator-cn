@@ -1,9 +1,9 @@
 [[validator-specifics]]
 == Hibernate Validator 特性
 
-在本章中，您将学习如何使用 Hibernate Validator 提供的几个特性以及 Jakarta Bean Validation 规范定义的功能。这包括故障快速模式、编程约束配置的 API 和约束的布尔组合。
+在本章中，您将学习如何使用 Hibernate Validator 提供的几个特性以及 Jakarta Bean Validation 规范定义的功能。这包括快速失败模式、编程约束配置的 API 和约束的布尔组合。
 
-新的 APIs 或 SPIs 被标记为 `org.hibernate.validator.Incubating` ，表示他们都正在发展。这意味着这些元素(例如包、类型、方法、常量等)可能在后续版本中被不兼容地改变或删除。鼓励使用酝酿中的 API/SPI 成员(这样开发团队就可以获得关于这些新特性的反馈) ，但是在升级到新版本的 Hibernate Validator 时，您应该准备更新代码，因为使用这些开发中的特性。
+新的 APIs 或 SPIs 被标记为 `org.hibernate.validator.Incubating` ，表示他们都正在发展。这意味着这些元素(例如包、类型、方法、常量等)可能在后续版本中被不兼容地改变或删除。鼓励使用酝酿中的 API/SPI 成员(这样开发团队就可以获得关于这些新特性的反馈) ，但是在升级到新版本的 Hibernate Validator 时，您可能会因为使用这些开发中的特性，需要更新代码。
 
 [NOTE]
 ====
@@ -12,10 +12,10 @@
 
 === 公共 API
 
-但是，让我们首先来看看 Hibernate Validator 的公共 API。下面您可以找到属于这个 API 的所有包的列表以及它们的用途。请注意，当一个包是公共 API 的一部分时，它的子包不一定是这样。
+但是，让我们首先来看看 Hibernate Validator 的公共 API。下面您可以找到属于这个 API 的所有包的列表以及它们的用途。请注意，当一个包是公共 API 的一部分时，但是它的子包不一定是。
 
 `org.hibernate.validator`::
-			Jakarta Bean Validation 引导机制(例如:验证提供程序，配置类)使用的类; 有关详细信息，请参阅<<chapter-bootstrapping>>。
+			Jakarta Bean Validation 引导机制使用的类(例如:验证提供程序，配置类); 有关详细信息，请参阅<<chapter-bootstrapping>>。
 
 `org.hibernate.validator.cfg`, `org.hibernate.validator.cfg.context`, `org.hibernate.validator.cfg.defs`, `org.hibernate.validator.spi.cfg`::
 			Hibernate Validator 中有关约束声明的 fluent API。 在 `org.hibernate.validator.cfg` 中可以找到 `ConstraintMapping` 接口，在 `org.hibernate.validator.cfg.defs` 可以找到所有约束的定义，在 `org.hibernate.validator.spi.cfg` 中可以找到使用该 API 配置默认验证器工厂的回调。有关详细信息，请参阅<<section-programmatic-api>>。
@@ -75,7 +75,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter12/failfast/F
 ----
 ====
 
-这里验证过的对象实际上不能同时满足 `Car` 类上声明的约束，然而校验调用只产生一个 `ConstraintViolation` ，因为启用了 fail fast 模式。
+这里验证过的对象实际上不能同时满足 `Car` 类上声明的约束，然而校验调用只产生一个 `ConstraintViolation` ，因为启用了快速失败模式。
 
 [NOTE]
 ====
@@ -113,7 +113,7 @@ Jakarta Bean Validation 规范定义了一组前置条件，这些前置条件�
 ----
 ====
 
-或者，可以在编程引导期间应用这些设置。
+或者，可以在编程引导启动期间应用这些设置。
 
 [[example-relaxing-method-validation]]
 .在类层次结构中配置方法验证行为

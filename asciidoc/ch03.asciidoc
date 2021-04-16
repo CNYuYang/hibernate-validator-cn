@@ -44,10 +44,10 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/parameter/
 * `RentalCar` 构造函数中 `name` 字段不能为 `null`
 * 当调用 `rentCar()` 方法时,  `customer` 字段不能为 `null`, `startDate` 字段不能为 `null` 且为将来的时间， `durationInDays` 字段的最小值为1。
 
-请注意，声明方法或构造函数约束本身并不会在调用该方法时自动导致它们的进行校验。相反，必须使用 `ExecutableValidator` API (see
+请注意，声明方法或构造函数约束本身并不会在调用该方法时自动导致它们的进行校验。相反，必须使用 `ExecutableValidator` API (参见
 <<section-validating-executable-constraints>>) 来执行校验，底层的实现方法通常使用方法拦截工具(如 AOP、代理对象等)来完成。
 
-约束只能应用于实例方法，即不支持在静态方法上声明约束。根据您用于触发方法校验的拦截技术，可能会适用其他限制，例如，关于被支持作为拦截目标的方法的可见性。请参阅拦截技术的文档以查明是否存在任何此类限制。
+约束只能应用于实例方法，即不支持在静态方法上声明约束。根据您用于触发方法校验的拦截技术，可能会有其他限制，例如，关于被支持作为拦截目标的方法的可见性。请参阅拦截技术的文档以查明是否存在任何此类限制。
 
 ===== 交叉参数约束
 
@@ -66,7 +66,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/crossparam
 ----
 ====
 
-正如您将在下一节中了解到的，返回值约束也是在方法级别声明的。为了区分跨参数约束和返回值约束，在自定义约束注解的实现校验器 `ConstraintValidator` 上，标注 `@SupportedValidationTarget` 注解。您可以参阅 
+正如您将在下一节中了解到的，返回值约束也是在方法级别声明的。为了区分交叉参数约束和返回值约束，在自定义约束注解的实现校验器 `ConstraintValidator` 上，标注 `@SupportedValidationTarget` 注解。您可以参阅 
 <<section-cross-parameter-constraints>> ，该节展示了如何实现自己的交叉参数约束。
 
 在某些情况下，约束即可以应用于可执行方法的参数(即它是一个交叉参数约束) ，也可以应用于返回值。例如，允许使用表达式或脚本语言指定校验规则的自定义约束。
@@ -89,7 +89,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/crossparam
 * 无输入参数，但有返回值的函数 (约束作用于返回参数上)
 * 既不是方法也不是构造函数，而是字段、参数等 (约束作用于带注解的元素)
 
-在这些情况下，您不必指定约束目标。如果它增加了源代码的可读性，仍然建议这样做。如果在无法自动确定约束目标的情况下，也未指定该约束目标，则会引发 `ConstraintDeclarationException`。
+在这些情况下，您不必指定约束目标。如果它增加了源代码的可读性，仍然建议这样做。如果在无法自动确定约束目标的情况下，也未指定该约束目标，则会引发 `ConstraintDeclarationException` 异常。
 
 ==== 返回值约束
 
@@ -107,8 +107,8 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/returnvalu
 下面是 `RentalStation` 类声明的约束:
 
 * 创建 `RentalStation` 对象必须通过 `@ValidRentalStation` 校验
-* `getCustomers()` 返回值不能为 `null` ，并且必须至少包含元素( list.size() > 0 )
-* `getCustomers()` 包含的元素( `Customer` 对象 )不能为 `null` 对象
+* `getCustomers()` 返回的List不能为 `null` ，并且必须至少包含元素( list.size() > 0 )
+* `getCustomers()` 返回的List包含的元素( `Customer` 对象 ) 不能为 `null` 
 
 [NOTE]
 ====
@@ -117,7 +117,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/returnvalu
 
 ==== 级联校验
 
-类似于 JavaBeans 属性的级联校验  (see
+类似于 JavaBeans 属性的级联校验  (参见
 <<section-object-graph-validation>>), `@Valid` 注解可用于标记可执行参数和级联校验的返回值。在校验带有 `@Valid` 注解的输入参数或返回值时，也会校验在输入参数或返回值对象中声明的约束。
 
 在 <<example-cascaded-executable-validation>> 中, `Garage#checkCar()` 方法的输入参数 `car` 和构造函数 `Garage` 一样都会进行级联校验。
@@ -191,8 +191,6 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/inheritanc
 
 此外，如果一个方法覆盖或实现了在几个并行超类型中声明的方法(例如，两个没有相互扩展的接口，或者一个类和一个没有被该类实现的接口) ，那么在任何涉及的类型中都不能为该方法指定参数约束。 <<example-illegal-parameter-constraints-parallel-types>> 违反了该规则。  `RacingCar#drive()` 重写了 `Vehicle#drive()` 和 `Car#drive()` 方法。
 所以 `RacingCar#drive()` 是非法的。
-
-#(译者注：原文档所写 Vehicle#drive() 是非法的，译者认为此出存在笔误。)#
 
 [[example-illegal-parameter-constraints-parallel-types]]
 .层次结构的并行类型中的非法方法参数约束
@@ -382,7 +380,7 @@ include::{sourcedir}/org/hibernate/validator/referenceguide/chapter03/validation
 
 除了 <<section-builtin-constraints>> 中讨论的内置 bean 和属性级约束之外，Hibernate Validator 目前还提供了一个方法级约束 `@ParameterScriptAssert` 这是一个通用的交叉参数约束，它允许使用任何与 JSR 223兼容(“ Java ^TM^ 平台的脚本编写”)的脚本语言实现校验例程，前提是在类路径中可以使用这种语言的引擎。
 
-若要从表达式内引用可执行方法的参数，请使用从激活的参数名称提供者获得的参数名称 (see <<section-parameter-name-provider>>).
+若要从表达式内引用可执行方法的参数，请使用从激活的参数名称提供者获得的参数名称 (参见 <<section-parameter-name-provider>>).
 <<example-parameterscriptassert>> 示了如何在 `@LuggageCountMatchesPassengerCount`
 的帮助下表示 <<example-using-cross-parameter-constraint>> 的 `@ParameterScriptAssert` 约束的校验逻辑。 
 

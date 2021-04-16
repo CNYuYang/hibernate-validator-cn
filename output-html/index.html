@@ -717,18 +717,18 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <li><a href="#section-property-node-name-provider">12.18. 自定义违反约束的属性名解析</a></li>
 </ul>
 </li>
-<li><a href="#validator-annotation-processor">13. 注释处理器</a>
+<li><a href="#validator-annotation-processor">13. 注解处理器</a>
 <ul class="sectlevel2">
 <li><a href="#validator-annotationprocessor-prerequisites">13.1. 先决条件</a></li>
 <li><a href="#validator-annotationprocessor-features">13.2. 功能</a></li>
 <li><a href="#validator-annotationprocessor-options">13.3. 选项</a></li>
-<li><a href="#validator-annotationprocessor-usage">13.4. 使用注释处理器</a>
+<li><a href="#validator-annotationprocessor-usage">13.4. 使用注解处理器</a>
 <ul class="sectlevel3">
 <li><a href="#validator-annotationprocessor-commandline">13.4.1. 命令行构建</a></li>
 <li><a href="#validator-annotationprocessor-ide">13.4.2. IDE builds</a></li>
 </ul>
 </li>
-<li><a href="#validator-annotationprocessor-known-issues">13.5. Known issues</a></li>
+<li><a href="#validator-annotationprocessor-known-issues">13.5. 已知的问题</a></li>
 </ul>
 </li>
 <li><a href="#validator-further-reading">14. 进一步阅读</a></li>
@@ -804,14 +804,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="paragraph">
 <p>这样也会同时引入依赖 Jakarta Bean Validation API (<code>jakarta.validation:jakarta.validation-api:3.0.0</code>)。</p>
 </div>
-<div class="paragraph">
-<p><mark>( 译者注：hibernate-validator 依赖了 jakarta.validation-api ，所以引入 hibernate-validator 同时也会引入 jakarta.validation-api )</mark></p>
-</div>
 <div class="sect3">
 <h4 id="validator-gettingstarted-uel"><a class="anchor" href="#validator-gettingstarted-uel"></a>1.1.1. 统一的EL表达式</h4>
 <div class="paragraph">
-<p>Hibernate Validator 需要一个 <a href="https://projects.eclipse.org/projects/ee4j.el">Jakarta Expression Language</a> 的实现，能够使用表达式动态计算校验结果 ( <a href="#section-message-interpolation">Section 4.1, &#8220;默认消息插值&#8221;</a>)。当您的应用程序在 Java EE 容器(如 JOSS AS )中运行时，相关容器已经提供了EL实现。 但是，在Java SE环境中，您必须将一个实现作为依赖项添加到您的POM文件。例如，您可以添加以下依赖项来使用 Jakarta EL <a href="https://github.com/eclipse-ee4j/el-ri">reference
-implementation</a>引用:</p>
+<p>Hibernate Validator 需要一个 <a href="https://projects.eclipse.org/projects/ee4j.el">Jakarta Expression Language</a> 的实现，能够使用表达式动态计算校验结果 ( <a href="#section-message-interpolation">Section 4.1, &#8220;默认消息插值&#8221;</a>)。当您的应用程序在 Java EE 容器(如 JOSS AS )中运行时，相关容器已经提供了EL实现。 但是，在Java SE环境中，您必须将一个实现作为依赖项添加到您的POM文件。例如，您可以添加以下依赖项来使用 Jakarta EL <a href="https://github.com/eclipse-ee4j/el-ri">参考实现</a>:</p>
 </div>
 <div class="exampleblock">
 <div class="title">Example 2. Maven引入EL的实现</div>
@@ -912,7 +908,7 @@ grant codeBase "file:path/to/validation-caller-x.y.z.jar" {
 <div class="sect3">
 <h4 id="_在_wildfly_中更新_hibernate_校验器"><a class="anchor" href="#_在_wildfly_中更新_hibernate_校验器"></a>1.1.4. 在 WildFly 中更新 Hibernate 校验器</h4>
 <div class="paragraph">
-<p><a href="http://wildfly.org/">WildFly 应用程序服务器</a>包含开箱即用的 Hibernate Validator。为了将 Jakarta Bean Validation API 和 Hibernate Validator 的服务器模块更新为最新和最大的模块，可以使用 WildFly 的补丁机制。</p>
+<p><a href="http://wildfly.org/">WildFly 应用程序服务器</a>包含开箱即用的 Hibernate Validator。为了将 Jakarta Bean Validation API 和 Hibernate Validator 服务模块更新为最新和最稳定的模块，可以使用 WildFly 的补丁机制。</p>
 </div>
 <div class="paragraph">
 <p>你可以从 <a href="http://sourceforge.net/projects/hibernate/files/hibernate-validator">SourceForge</a> 或者 使用以下依赖项从 Maven Central 下载修补程序文件:</p>
@@ -979,13 +975,13 @@ grant codeBase "file:path/to/validation-caller-x.y.z.jar" {
 </div>
 </div>
 <div class="paragraph">
-<p>您可以在 <a href="https://developer.jboss.org/wiki/SingleInstallationPatching/">这里</a> 和 <a href="http://www.mastertheboss.com/jboss-server/jboss-configuration/managing-wildfly-and-eap-patches">这里</a>了解有关 WildFly 补丁基础信息。</p>
+<p>您可以在 <a href="https://developer.jboss.org/wiki/SingleInstallationPatching/">这里</a> 和 <a href="http://www.mastertheboss.com/jboss-server/jboss-configuration/managing-wildfly-and-eap-patches">这里</a>了解有关 WildFly 补丁的基础信息。</p>
 </div>
 </div>
 <div class="sect3">
 <h4 id="validator-gettingstarted-java9"><a class="anchor" href="#validator-gettingstarted-java9"></a>1.1.5. 在 Java 9上运行</h4>
 <div class="paragraph">
-<p>从 Hibernate Validator 7.0.1.Final开始。最后，对 Java 9和 Java 平台模块系统(JPMS)的支持是实验性的。目前还没有提供 JPMS 模块描述符，但 Hibernate Validator 可以用作自动模块。</p>
+<p>从 Hibernate Validator 7.0.1.Final 开始便支持 Java 9。但是对 Java 9的模块化特性(JPMS)的支持是实验性的。目前还没有提供 JPMS 模块描述符，但 Hibernate Validator 目前可以用作自动模块。</p>
 </div>
 <div class="paragraph">
 <p>这些是使用 <code>Automatic-Module-Name</code> 头声明的模块名称:</p>
@@ -1010,7 +1006,7 @@ grant codeBase "file:path/to/validation-caller-x.y.z.jar" {
 </ul>
 </div>
 <div class="paragraph">
-<p>这些模块名称是暂时的，在将来的版本中提供真正的模块描述符时可能会改变。</p>
+<p>这些模块名称是暂时的，在将来提供真正的模块描述符的版本中可能会改变。</p>
 </div>
 </div>
 </div>
@@ -1055,7 +1051,7 @@ public class Car {
 </div>
 </div>
 <div class="paragraph">
-<p><code>@NotNull</code>, <code>@Size</code> 和 <code>@Min</code> 注解用于声明应该应用于 Car 实例字段的校验:</p>
+<p><code>@NotNull</code>， <code>@Size</code> 和 <code>@Min</code> 注解用于声明应该应用于 Car 实例字段的校验:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -1063,10 +1059,10 @@ public class Car {
 <p><code>manufacturer</code> 字段必须永远不能为 <code>null</code></p>
 </li>
 <li>
-<p><code>licensePlate</code> 字段不能为 <code>null</code> ，并且必须在2到14个字符之间</p>
+<p><code>licensePlate</code> 字段不能为 <code>null</code> ，并且长度必须在2到14个字符之间</p>
 </li>
 <li>
-<p><code>seatCount</code> 字段必须至少是2</p>
+<p><code>seatCount</code> 字段值的大小必须至少是2</p>
 </li>
 </ul>
 </div>
@@ -1174,14 +1170,11 @@ public class CarTest {
 </div>
 </div>
 <div class="paragraph">
-<p><mark>(译者注：大家在跑单元测试的时候可能会出错，因为做了本地化的处理。错误信息为中文字符与单元测试中的英文不匹配。后面的案例都可能出现类似情况，不再赘述。)</mark></p>
-</div>
-<div class="paragraph">
 <p>在 <code>setUp()</code> 方法中，使用 <code>ValidatorFactory</code> 获取一个 <code>Validator</code> 对象。 <code>Validator</code>
-实例是线程安全的，可以多次重用。因此，它可以安全地存储在一个静态变量中，并用于测试方法，以校验不同的 <code>Car</code> 实例.</p>
+实例是线程安全的，可以多次重用。因此，可以将 <code>Validator</code> 做为一个静态变量安全地存储，并用于测试方法，以校验不同的 <code>Car</code> 实例。</p>
 </div>
 <div class="paragraph">
-<p><code>validate()</code> 方法返回 <code>ConstraintViolation</code> 对象的 <code>Set</code> 集合, 您可以对其进行迭代操作，以查看发生了哪些校验错误。前三个测试方法显示了一些预期的违反约束的情况:</p>
+<p><code>validate()</code> 方法返回 <code>ConstraintViolation</code> 对象的 <code>Set</code> 集合， 您可以对其进行迭代操作，以查看发生了哪些校验错误。前三个测试方法显示了一些预期的违反约束的情况:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -1218,12 +1211,12 @@ public class CarTest {
 <h2 id="chapter-bean-constraints"><a class="anchor" href="#chapter-bean-constraints"></a>2. 声明和校验 bean 约束</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>在本章中，您将学习如何声明 (see <a href="#section-declaring-bean-constraints">Section 2.1, &#8220;声明 bean 约束&#8221;</a>) 以及
-校验 (see <a href="#section-validating-bean-constraints">Section 2.2, &#8220;校验 bean 约束&#8221;</a>) bean 约束。
+<p>在本章中，您将学习如何声明 (参见 <a href="#section-declaring-bean-constraints">Section 2.1, &#8220;声明 bean 约束&#8221;</a>) 以及
+校验 (参见 <a href="#section-validating-bean-constraints">Section 2.2, &#8220;校验 bean 约束&#8221;</a>) bean 约束。
 <a href="#section-builtin-constraints">Section 2.3, &#8220;内置约束&#8221;</a> 概述了 Hibernate Validator提供的所有内置约束。</p>
 </div>
 <div class="paragraph">
-<p>如果您对方法参数和返回值的约束校验感兴趣，请参阅 <a href="#chapter-method-constraints">Chapter 3, <em>声明和校验 method 约束</em></a>.</p>
+<p>如果您对方法参数和返回值的约束校验感兴趣，请参阅 <a href="#chapter-method-constraints">Chapter 3, <em>声明和校验 method 约束</em></a> 。</p>
 </div>
 <div class="sect2">
 <h3 id="section-declaring-bean-constraints"><a class="anchor" href="#section-declaring-bean-constraints"></a>2.1. 声明 bean 约束</h3>
@@ -1492,7 +1485,7 @@ public class Car {
 </div>
 </div>
 <div class="paragraph">
-<p>请注意，属性路径如何清楚地表明违规来自迭代器的元素。</p>
+<p>请注意，属性路径清楚地表明违规来自那个迭代器的元素。</p>
 </div>
 </div>
 <div class="sect4">
@@ -1549,7 +1542,7 @@ public class Car {
 <div class="sect4">
 <h5 id="_map"><a class="anchor" href="#_map"></a>2.1.3.3. <code>Map</code></h5>
 <div class="paragraph">
-<p>集合元素约束也在映射键和值上进行校验。
+<p>集合元素约束也可以在map类型的键和值上进行校验。
 <a href="#example-container-element-constraints-map">Example 15, &#8220;映射键和值上的集合元素约束&#8221;</a> 展示了一个 <code>Map</code> 的例子，对 key 和 value都进行校验。</p>
 </div>
 <div id="example-container-element-constraints-map" class="exampleblock">
@@ -1700,7 +1693,7 @@ public class Car {
 <p>集合元素约束也可以用于自定义集合。</p>
 </div>
 <div class="paragraph">
-<p>必须为自定义类型注册 <code>ValueExtractor</code> ，以允许检索要校验的值 (see <a href="#chapter-valueextraction">Chapter 7, <em>值提取</em></a> 以获得关于如何实现自己的 <code>ValueExtractor</code> 以及如何注册它的更多信息)。</p>
+<p>必须为自定义类型注册 <code>ValueExtractor</code> ，以允许检索要校验的值 (参见 <a href="#chapter-valueextraction">Chapter 7, <em>值提取</em></a> 以获得关于如何实现自己的 <code>ValueExtractor</code> 以及如何注册它的更多信息)。</p>
 </div>
 <div class="paragraph">
 <p><a href="#example-container-element-constraints-custom-container-type">Example 17, &#8220;自定义集合类型上的集合元素约束&#8221;</a> 展示了一个具有类型参数约束的自定义参数化类型的示例。</p>
@@ -1963,7 +1956,7 @@ public class Person {
 </div>
 <div class="paragraph">
 <p>如果校验了 <code>Car</code> ， 那么引用的 <code>Person</code> 对象也会被校验， 因为
-<code>driver</code> 字段使用了 <code>@Valid</code> 注解，。因此，如果引用的 <code>Person</code> 实例的 <code>name</code> 字段为 <code>null</code>，则 <code>Car</code> 的校验将失败。</p>
+<code>driver</code> 字段使用了 <code>@Valid</code> 注解。因此，如果引用的 <code>Person</code> 实例的 <code>name</code> 字段为 <code>null</code>，则 <code>Car</code> 的校验将失败。</p>
 </div>
 <div class="paragraph">
 <p>对象图的校验是递归的，也就是说，如果一个标记为级联校验的引用指向一个对象，该对象本身具有带 <code>@valid</code> 注解的属性，校验引擎也会跟踪这些引用。校验引擎将确保在级联校验期间不会发生无限循环，例如，如果两个对象彼此保持引用。</p>
@@ -2076,7 +2069,7 @@ public class Manufacturer {
 <div class="sect3">
 <h4 id="section-obtaining-validator"><a class="anchor" href="#section-obtaining-validator"></a>2.2.1. 获取 <code>Validator</code> 实例</h4>
 <div class="paragraph">
-<p>校验实例的第一步是获得 <code>Validator</code> 实例。为获取这个实例的需要通过 <code>Validation</code> 类和  <code>ValidatorFactory</code> 。最简单的方法是使用静态方法 <code>Validation # builddefaultvalidatorfactory()</code> :</p>
+<p>校验实例的第一步是获得 <code>Validator</code> 实例。为获取这个实例的需要通过 <code>Validation</code> 类和  <code>ValidatorFactory</code> 。最简单的方法是使用静态方法 <code>Validation#builddefaultvalidatorfactory()</code> :</p>
 </div>
 <div class="exampleblock">
 <div class="title">Example 23. <code>Validation#buildDefaultValidatorFactory()</code></div>
@@ -2090,7 +2083,7 @@ public class Manufacturer {
 </div>
 </div>
 <div class="paragraph">
-<p>这将使用默认配置启动校验程序。请参阅 <a href="#chapter-bootstrapping">Chapter 9, <em>Bootstrapping</em></a> 以了解更多关于不同的 Bootstrapping 方法以及如何获得特定配置的 <code>Validator</code> 实例。</p>
+<p>这将使用默认配置启动校验程序。请参阅 <a href="#chapter-bootstrapping">Chapter 9, <em>Bootstrapping</em></a> 以了解更多关于不同的启动方法以及如何获得特定配置的 <code>Validator</code> 实例。</p>
 </div>
 </div>
 <div class="sect3">
@@ -2188,7 +2181,7 @@ public class Manufacturer {
 </table>
 </div>
 <div class="paragraph">
-<p>例如，<code>Validator#validateProperty()</code> 用于将 Jakarta Bean Validation 集成到 JSF 2中(see <a href="#section-presentation-layer">Section 11.2, &#8220;JSF &amp; Seam&#8221;</a>) ，以便对输入到表单中的值执行校验，然后将它们传播到模型中。</p>
+<p>例如，<code>Validator#validateProperty()</code> 用于将 Jakarta Bean Validation 集成到 JSF 2中(参见 <a href="#section-presentation-layer">Section 11.2, &#8220;JSF &amp; Seam&#8221;</a>) ，以便对输入到表单中的值执行校验，然后将它们传播到模型中。</p>
 </div>
 </div>
 </div>
@@ -2204,10 +2197,10 @@ public class Manufacturer {
 <dl>
 <dt class="hdlist1"><code>getMessage()</code></dt>
 <dd>
-<p>The interpolated error message</p>
+<p>插值后产生的错误信息</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
 <p>"must not be null"</p>
 </dd>
@@ -2216,10 +2209,10 @@ public class Manufacturer {
 </dd>
 <dt class="hdlist1"><code>getMessageTemplate()</code></dt>
 <dd>
-<p>The non-interpolated error message</p>
+<p>未插值的模版信息</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
 <p>"{&#8230;&#8203; NotNull.message}"</p>
 </dd>
@@ -2228,10 +2221,10 @@ public class Manufacturer {
 </dd>
 <dt class="hdlist1"><code>getRootBean()</code></dt>
 <dd>
-<p>The root bean being validated</p>
+<p>被校验的根bean</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
 <p>car</p>
 </dd>
@@ -2240,10 +2233,10 @@ public class Manufacturer {
 </dd>
 <dt class="hdlist1"><code>getRootBeanClass()</code></dt>
 <dd>
-<p>The class of the root bean being validated</p>
+<p>被校验的根bean的类</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
 <p><code>Car.class</code></p>
 </dd>
@@ -2252,12 +2245,10 @@ public class Manufacturer {
 </dd>
 <dt class="hdlist1"><code>getLeafBean()</code></dt>
 <dd>
-<p>If a bean constraint， the bean instance the constraint is
-applied on; if a property constraint， the bean instance hosting
-the property the constraint is applied on</p>
+<p>如果是bean约束，则将获取到应用约束到bean实例；如果是属性约束，则将获取到托管该约束的属性的bean实例</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
 <p><code>car</code></p>
 </dd>
@@ -2266,22 +2257,22 @@ the property the constraint is applied on</p>
 </dd>
 <dt class="hdlist1"><code>getPropertyPath()</code></dt>
 <dd>
-<p>The property path to the validated value from root bean</p>
+<p>根bean的校验值的属性路径</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
-<p>contains one node with kind <code>PROPERTY</code> and name "manufacturer"</p>
+<p>约束的一个节点是 <code>PROPERTY</code> 类型，属性名为 "manufacturer"</p>
 </dd>
 </dl>
 </div>
 </dd>
 <dt class="hdlist1"><code>getInvalidValue()</code></dt>
 <dd>
-<p>The value failing to pass the constraint</p>
+<p>导致校验失败的值</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
 <p><code>null</code></p>
 </dd>
@@ -2290,12 +2281,12 @@ the property the constraint is applied on</p>
 </dd>
 <dt class="hdlist1"><code>getConstraintDescriptor()</code></dt>
 <dd>
-<p>Constraint metadata reported to fail</p>
+<p>导致校验失败的约束的元信息</p>
 <div class="dlist">
 <dl>
-<dt class="hdlist1">Example</dt>
+<dt class="hdlist1">示例</dt>
 <dd>
-<p>descriptor for <code>@NotNull</code></p>
+<p><code>@NotNull</code> 约束的 descriptor</p>
 </dd>
 </dl>
 </div>
@@ -2304,7 +2295,7 @@ the property the constraint is applied on</p>
 </div>
 </div>
 <div class="sect4">
-<h5 id="_利用_property_path"><a class="anchor" href="#_利用_property_path"></a>2.2.3.2. 利用 property path</h5>
+<h5 id="_利用属性路径"><a class="anchor" href="#_利用属性路径"></a>2.2.3.2. 利用属性路径</h5>
 <div class="paragraph">
 <p>要确定触发冲突的原因，需要利用 <code>getPropertyPath()</code> 方法的返回值。</p>
 </div>
@@ -2320,8 +2311,8 @@ the property the constraint is applied on</p>
 <div class="sect2">
 <h3 id="section-builtin-constraints"><a class="anchor" href="#section-builtin-constraints"></a>2.3. 内置约束</h3>
 <div class="paragraph">
-<p>Hibernate Validator 包含一组常用的约束。这些都是 Jakarta Bean Validation 规范定义 (see <a href="#validator-defineconstraints-spec">Section 2.3.1, &#8220;Jakarta Bean Validation 约束&#8221;</a>)。
-此外，Hibernate Validator 还提供了在某些场景十分有用的自定义约束 (see
+<p>Hibernate Validator 包含一组常用的约束。这些都是 Jakarta Bean Validation 规范定义 (参见 <a href="#validator-defineconstraints-spec">Section 2.3.1, &#8220;Jakarta Bean Validation 约束&#8221;</a>)。
+此外，Hibernate Validator 还提供了在某些场景十分有用的自定义约束 (参见
 <a href="#validator-defineconstraints-hv-constraints">Section 2.3.2, &#8220;附加约束&#8221;</a>)。</p>
 </div>
 <div class="sect3">
@@ -2852,7 +2843,7 @@ the property the constraint is applied on</p>
 </dd>
 <dt class="hdlist1"><code>@LuhnCheck(startIndex= ， endIndex=， checkDigitIndex=， ignoreNonDigitCharacters=)</code></dt>
 <dd>
-<p>检查带注解的字符序列中的数字是否通过 Luhn 校验和算法 (see also <a href="http://en.wikipedia.org/wiki/Luhn_algorithm">Luhn algorithm</a>). <code>startIndex</code> 和 <code>endIndex</code> 只允许在指定的子字符串上运行算法。 <code>checkDigitIndex</code> 允许使用字符序列中的任意数字作为校验数字。如果未指定，则假定检查数字是指定范围的一部分。最后但并非最不重要的是，<code>ignoreNonDigitCharacters</code> 允许忽略非数字字符。</p>
+<p>检查带注解的字符序列中的数字是否通过 Luhn 校验和算法 (参见 <a href="http://en.wikipedia.org/wiki/Luhn_algorithm">Luhn algorithm</a>). <code>startIndex</code> 和 <code>endIndex</code> 只允许在指定的子字符串上运行算法。 <code>checkDigitIndex</code> 允许使用字符序列中的任意数字作为校验数字。如果未指定，则假定检查数字是指定范围的一部分。最后但并非最不重要的是，<code>ignoreNonDigitCharacters</code> 允许忽略非数字字符。</p>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">支持的数据类型</dt>
@@ -2964,7 +2955,7 @@ the property the constraint is applied on</p>
 </dd>
 <dt class="hdlist1"><code>@URL(protocol=， host=， port=， regexp=， flags=)</code></dt>
 <dd>
-<p>根据 RFC2396检查带注解的字符序列是否为有效的 URL。如果指定了任何可选参数 <code>protocol</code>， <code>host</code> or <code>port</code> ，则相应的 URL 片段必须匹配指定的值。可选参数 <code>regexp</code> 和 <code>flags</code> 允许指定 URL 必须匹配的附加正则表达式(包括正则表达式标志)。根据默认情况，此约束使用 <code>java. net. URL</code> 构造函数校验给定字符串是否表示有效 URL。还有一个基于正则表达式的版本—— <code>RegexpURLValidator</code> ——可以通过 XML ( see <a href="#section-mapping-xml-constraints">Section 8.2, &#8220;通过 <code>constraint-mappings</code> 映射约束&#8221;</a>) 或 (see <a href="#section-programmatic-constraint-definition">Section 12.15.2, &#8220;以编程方式添加约束定义&#8221;</a>).</p>
+<p>根据 RFC2396检查带注解的字符序列是否为有效的 URL。如果指定了任何可选参数 <code>protocol</code>， <code>host</code> or <code>port</code> ，则相应的 URL 片段必须匹配指定的值。可选参数 <code>regexp</code> 和 <code>flags</code> 允许指定 URL 必须匹配的附加正则表达式(包括正则表达式标志)。根据默认情况，此约束使用 <code>java. net. URL</code> 构造函数校验给定字符串是否表示有效 URL。还有一个基于正则表达式的版本—— <code>RegexpURLValidator</code> ——可以通过 XML ( 参见 <a href="#section-mapping-xml-constraints">Section 8.2, &#8220;通过 <code>constraint-mappings</code> 映射约束&#8221;</a>) 或 (参见 <a href="#section-programmatic-constraint-definition">Section 12.15.2, &#8220;以编程方式添加约束定义&#8221;</a>).</p>
 <div class="dlist">
 <dl>
 <dt class="hdlist1">支持的数据类型</dt>
@@ -3267,11 +3258,11 @@ public class RentalStation {
 </ul>
 </div>
 <div class="paragraph">
-<p>请注意，声明方法或构造函数约束本身并不会在调用该方法时自动导致它们的进行校验。相反，必须使用 <code>ExecutableValidator</code> API (see
+<p>请注意，声明方法或构造函数约束本身并不会在调用该方法时自动导致它们的进行校验。相反，必须使用 <code>ExecutableValidator</code> API (参见
 <a href="#section-validating-executable-constraints">Section 3.2, &#8220;校验 method 约束&#8221;</a>) 来执行校验，底层的实现方法通常使用方法拦截工具(如 AOP、代理对象等)来完成。</p>
 </div>
 <div class="paragraph">
-<p>约束只能应用于实例方法，即不支持在静态方法上声明约束。根据您用于触发方法校验的拦截技术，可能会适用其他限制，例如，关于被支持作为拦截目标的方法的可见性。请参阅拦截技术的文档以查明是否存在任何此类限制。</p>
+<p>约束只能应用于实例方法，即不支持在静态方法上声明约束。根据您用于触发方法校验的拦截技术，可能会有其他限制，例如，关于被支持作为拦截目标的方法的可见性。请参阅拦截技术的文档以查明是否存在任何此类限制。</p>
 </div>
 <div class="sect4">
 <h5 id="_交叉参数约束"><a class="anchor" href="#_交叉参数约束"></a>3.1.1.1. 交叉参数约束</h5>
@@ -3303,7 +3294,7 @@ public class Car {
 </div>
 </div>
 <div class="paragraph">
-<p>正如您将在下一节中了解到的，返回值约束也是在方法级别声明的。为了区分跨参数约束和返回值约束，在自定义约束注解的实现校验器 <code>ConstraintValidator</code> 上，标注 <code>@SupportedValidationTarget</code> 注解。您可以参阅
+<p>正如您将在下一节中了解到的，返回值约束也是在方法级别声明的。为了区分交叉参数约束和返回值约束，在自定义约束注解的实现校验器 <code>ConstraintValidator</code> 上，标注 <code>@SupportedValidationTarget</code> 注解。您可以参阅
 <a href="#section-cross-parameter-constraints">Section 6.3, &#8220;交叉参数约束&#8221;</a> ，该节展示了如何实现自己的交叉参数约束。</p>
 </div>
 <div class="paragraph">
@@ -3355,7 +3346,7 @@ public class Garage {
 </ul>
 </div>
 <div class="paragraph">
-<p>在这些情况下，您不必指定约束目标。如果它增加了源代码的可读性，仍然建议这样做。如果在无法自动确定约束目标的情况下，也未指定该约束目标，则会引发 <code>ConstraintDeclarationException</code>。</p>
+<p>在这些情况下，您不必指定约束目标。如果它增加了源代码的可读性，仍然建议这样做。如果在无法自动确定约束目标的情况下，也未指定该约束目标，则会引发 <code>ConstraintDeclarationException</code> 异常。</p>
 </div>
 </div>
 </div>
@@ -3398,10 +3389,10 @@ public class RentalStation {
 <p>创建 <code>RentalStation</code> 对象必须通过 <code>@ValidRentalStation</code> 校验</p>
 </li>
 <li>
-<p><code>getCustomers()</code> 返回值不能为 <code>null</code> ，并且必须至少包含元素( list.size() &gt; 0 )</p>
+<p><code>getCustomers()</code> 返回的List不能为 <code>null</code> ，并且必须至少包含元素( list.size() &gt; 0 )</p>
 </li>
 <li>
-<p><code>getCustomers()</code> 包含的元素( <code>Customer</code> 对象 )不能为 <code>null</code> 对象</p>
+<p><code>getCustomers()</code> 返回的List包含的元素( <code>Customer</code> 对象 ) 不能为 <code>null</code></p>
 </li>
 </ul>
 </div>
@@ -3423,7 +3414,7 @@ public class RentalStation {
 <div class="sect3">
 <h4 id="_级联校验"><a class="anchor" href="#_级联校验"></a>3.1.3. 级联校验</h4>
 <div class="paragraph">
-<p>类似于 JavaBeans 属性的级联校验  (see
+<p>类似于 JavaBeans 属性的级联校验  (参见
 <a href="#section-object-graph-validation">Section 2.1.6, &#8220;对象图&#8221;</a>), <code>@Valid</code> 注解可用于标记可执行参数和级联校验的返回值。在校验带有 <code>@Valid</code> 注解的输入参数或返回值时，也会校验在输入参数或返回值对象中声明的约束。</p>
 </div>
 <div class="paragraph">
@@ -3573,9 +3564,6 @@ public class Car implements Vehicle {
 <div class="paragraph">
 <p>此外，如果一个方法覆盖或实现了在几个并行超类型中声明的方法(例如，两个没有相互扩展的接口，或者一个类和一个没有被该类实现的接口) ，那么在任何涉及的类型中都不能为该方法指定参数约束。 <a href="#example-illegal-parameter-constraints-parallel-types">Example 34, &#8220;层次结构的并行类型中的非法方法参数约束&#8221;</a> 违反了该规则。  <code>RacingCar#drive()</code> 重写了 <code>Vehicle#drive()</code> 和 <code>Car#drive()</code> 方法。
 所以 <code>RacingCar#drive()</code> 是非法的。</p>
-</div>
-<div class="paragraph">
-<p><mark>(译者注：原文档所写 Vehicle#drive() 是非法的，译者认为此出存在笔误。)</mark></p>
 </div>
 <div id="example-illegal-parameter-constraints-parallel-types" class="exampleblock">
 <div class="title">Example 34. 层次结构的并行类型中的非法方法参数约束</div>
@@ -3964,7 +3952,7 @@ assertEquals( 0, parameterNode.getParameterIndex() );</code></pre>
 <p>除了 <a href="#section-builtin-constraints">Section 2.3, &#8220;内置约束&#8221;</a> 中讨论的内置 bean 和属性级约束之外，Hibernate Validator 目前还提供了一个方法级约束 <code>@ParameterScriptAssert</code> 这是一个通用的交叉参数约束，它允许使用任何与 JSR 223兼容(“ Java <sup>TM</sup> 平台的脚本编写”)的脚本语言实现校验例程，前提是在类路径中可以使用这种语言的引擎。</p>
 </div>
 <div class="paragraph">
-<p>若要从表达式内引用可执行方法的参数，请使用从激活的参数名称提供者获得的参数名称 (see <a href="#section-parameter-name-provider">Section 9.2.4, &#8220;<code>ParameterNameProvider</code>&#8221;</a>).
+<p>若要从表达式内引用可执行方法的参数，请使用从激活的参数名称提供者获得的参数名称 (参见 <a href="#section-parameter-name-provider">Section 9.2.4, &#8220;<code>ParameterNameProvider</code>&#8221;</a>).
 <a href="#example-parameterscriptassert">Example 43, &#8220;使用 <code>@ParameterScriptAssert</code>&#8221;</a> 示了如何在 <code>@LuggageCountMatchesPassengerCount</code>
 的帮助下表示 <a href="#example-using-cross-parameter-constraint">Example 28, &#8220;声明交叉参数约束&#8221;</a> 的 <code>@ParameterScriptAssert</code> 约束的校验逻辑。</p>
 </div>
@@ -9118,10 +9106,10 @@ public class RentalStationBean {
 <h2 id="validator-specifics"><a class="anchor" href="#validator-specifics"></a>12. Hibernate Validator 特性</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>在本章中，您将学习如何使用 Hibernate Validator 提供的几个特性以及 Jakarta Bean Validation 规范定义的功能。这包括故障快速模式、编程约束配置的 API 和约束的布尔组合。</p>
+<p>在本章中，您将学习如何使用 Hibernate Validator 提供的几个特性以及 Jakarta Bean Validation 规范定义的功能。这包括快速失败模式、编程约束配置的 API 和约束的布尔组合。</p>
 </div>
 <div class="paragraph">
-<p>新的 APIs 或 SPIs 被标记为 <code>org.hibernate.validator.Incubating</code> ，表示他们都正在发展。这意味着这些元素(例如包、类型、方法、常量等)可能在后续版本中被不兼容地改变或删除。鼓励使用酝酿中的 API/SPI 成员(这样开发团队就可以获得关于这些新特性的反馈) ，但是在升级到新版本的 Hibernate Validator 时，您应该准备更新代码，因为使用这些开发中的特性。</p>
+<p>新的 APIs 或 SPIs 被标记为 <code>org.hibernate.validator.Incubating</code> ，表示他们都正在发展。这意味着这些元素(例如包、类型、方法、常量等)可能在后续版本中被不兼容地改变或删除。鼓励使用酝酿中的 API/SPI 成员(这样开发团队就可以获得关于这些新特性的反馈) ，但是在升级到新版本的 Hibernate Validator 时，您可能会因为使用这些开发中的特性，需要更新代码。</p>
 </div>
 <div class="admonitionblock note">
 <table>
@@ -9140,13 +9128,13 @@ public class RentalStationBean {
 <div class="sect2">
 <h3 id="_公共_api"><a class="anchor" href="#_公共_api"></a>12.1. 公共 API</h3>
 <div class="paragraph">
-<p>但是，让我们首先来看看 Hibernate Validator 的公共 API。下面您可以找到属于这个 API 的所有包的列表以及它们的用途。请注意，当一个包是公共 API 的一部分时，它的子包不一定是这样。</p>
+<p>但是，让我们首先来看看 Hibernate Validator 的公共 API。下面您可以找到属于这个 API 的所有包的列表以及它们的用途。请注意，当一个包是公共 API 的一部分时，但是它的子包不一定是。</p>
 </div>
 <div class="dlist">
 <dl>
 <dt class="hdlist1"><code>org.hibernate.validator</code></dt>
 <dd>
-<p>Jakarta Bean Validation 引导机制(例如:验证提供程序，配置类)使用的类; 有关详细信息，请参阅<a href="#chapter-bootstrapping">Chapter 9, <em>Bootstrapping</em></a>。</p>
+<p>Jakarta Bean Validation 引导机制使用的类(例如:验证提供程序，配置类); 有关详细信息，请参阅<a href="#chapter-bootstrapping">Chapter 9, <em>Bootstrapping</em></a>。</p>
 </dd>
 <dt class="hdlist1"><code>org.hibernate.validator.cfg</code>, <code>org.hibernate.validator.cfg.context</code>, <code>org.hibernate.validator.cfg.defs</code>, <code>org.hibernate.validator.spi.cfg</code></dt>
 <dd>
@@ -9258,7 +9246,7 @@ assertEquals( 1, constraintViolations.size() );</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>这里验证过的对象实际上不能同时满足 <code>Car</code> 类上声明的约束，然而校验调用只产生一个 <code>ConstraintViolation</code> ，因为启用了 fail fast 模式。</p>
+<p>这里验证过的对象实际上不能同时满足 <code>Car</code> 类上声明的约束，然而校验调用只产生一个 <code>ConstraintViolation</code> ，因为启用了快速失败模式。</p>
 </div>
 <div class="admonitionblock note">
 <table>
@@ -9311,7 +9299,7 @@ assertEquals( 1, constraintViolations.size() );</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p>或者，可以在编程引导期间应用这些设置。</p>
+<p>或者，可以在编程引导启动期间应用这些设置。</p>
 </div>
 <div id="example-relaxing-method-validation" class="exampleblock">
 <div class="title">Example 137. 在类层次结构中配置方法验证行为</div>
@@ -11012,7 +11000,7 @@ public class Person {
 </div>
 </div>
 <div class="sect1">
-<h2 id="validator-annotation-processor"><a class="anchor" href="#validator-annotation-processor"></a>13. 注释处理器</h2>
+<h2 id="validator-annotation-processor"><a class="anchor" href="#validator-annotation-processor"></a>13. 注解处理器</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>你有没有无意中做过一些事情，比如</p>
@@ -11020,18 +11008,18 @@ public class Person {
 <div class="ulist">
 <ul>
 <li>
-<p>在不支持的数据类型上指定约束注释(例如用 <code>@Past</code> 注释一个 String)</p>
+<p>在不支持的数据类型上指定约束注解(例如用 <code>@Past</code> 注解一个 String 类型变量 )</p>
 </li>
 <li>
-<p>注释 javabean 属性的 setter (而不是 getter 方法)</p>
+<p>注解 JavaBeans 属性的 setter 方法(而不是 getter 方法)</p>
 </li>
 <li>
-<p>使用约束注释(不支持)注释静态字段/方法？</p>
+<p>使用约束注解静态字段/方法(这是不支持的)？</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p>那么 Hibernate Validator 注释处理器就是适合您的工具。通过插入构建过程并在约束注释使用不正确时引发编译错误，它有助于防止此类错误。</p>
+<p>那么 Hibernate Validator 注解处理器就是适合您的工具。通过插入构建过程并在约束注解使用不正确时引发编译错误，它有助于防止此类错误。</p>
 </div>
 <div class="admonitionblock tip">
 <table>
@@ -11041,7 +11029,7 @@ public class Person {
 </td>
 <td class="content">
 <div class="paragraph">
-<p>您可以在 <a href="http://sourceforge.net/projects/hibernate/files/hibernate-validator">Sourceforge</a> 或者 Maven Central 等常见的存储库 GAV <code>org.hibernate.validator:hibernate-validator-annotation-processor:7.0.1.Final</code> 中找到 Hibernate Validator Annotation Processor 作为发行包的一部分。决赛。</p>
+<p>您可以在 <a href="http://sourceforge.net/projects/hibernate/files/hibernate-validator">Sourceforge</a> 或者 Maven Central 等常见的存储库 GAV <code>org.hibernate.validator:hibernate-validator-annotation-processor:7.0.1.Final</code> 中找到 Hibernate Validator Annotation Processor 作为发行包的一部分。</p>
 </div>
 </td>
 </tr>
@@ -11050,36 +11038,36 @@ public class Person {
 <div class="sect2">
 <h3 id="validator-annotationprocessor-prerequisites"><a class="anchor" href="#validator-annotationprocessor-prerequisites"></a>13.1. 先决条件</h3>
 <div class="paragraph">
-<p>Hibernate Validator 注释处理器基于 <a href="http://jcp.org/en/jsr/detail?id=269">JSR 269</a> 定义的“Pluggable Annotation Processing API ”， <a href="http://jcp.org/en/jsr/detail?id=269">JSR 269</a> 是 Java 平台的一部分。</p>
+<p>Hibernate Validator 注解处理器基于 <a href="http://jcp.org/en/jsr/detail?id=269">JSR 269</a> 定义的"Pluggable Annotation Processing API"， <a href="http://jcp.org/en/jsr/detail?id=269">JSR 269</a> 是 Java 平台的一部分。</p>
 </div>
 </div>
 <div class="sect2">
 <h3 id="validator-annotationprocessor-features"><a class="anchor" href="#validator-annotationprocessor-features"></a>13.2. 功能</h3>
 <div class="paragraph">
-<p>从 Hibernate Validator 7.0.1.Final 开始，Hibernate Validator 注释处理器检查如下:</p>
+<p>从 Hibernate Validator 7.0.1.Final 开始，Hibernate Validator 注解处理器检查如下:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>注释元素的类型允许使用约束注释</p>
+<p>在允许注解元素的类型上使用约束注解</p>
 </li>
 <li>
-<p>只有非静态字段或方法用约束注释注释</p>
+<p>只在非静态字段或方法用约束注解</p>
 </li>
 <li>
-<p>只有非基元字段或方法用 <code>@Valid</code> 注释</p>
+<p>只在非原始字段或方法用 <code>@Valid</code> 注解</p>
 </li>
 <li>
-<p>只有这些方法用约束注释注释，这些约束注释是有效的 javabean getter 方法(可选地，参见下面)</p>
+<p>只有在 JavaBeans 的 getter 方法上用约束注解，这些约束注解是有效的(可选地，参见下面)</p>
 </li>
 <li>
-<p>只有这样的注释类型用约束注释注释，这些约束注释本身就是约束注释</p>
+<p>只有这样的注解类型用约束注解，这些约束注解本身就是约束注解</p>
 </li>
 <li>
 <p>使用 <code>@GroupSequenceProvider</code> 定义动态默认组序列是有效的</p>
 </li>
 <li>
-<p>注释参数值是有意义和有效的</p>
+<p>注解参数值是有意义和有效的</p>
 </li>
 <li>
 <p>继承层次结构中的方法参数约束尊重继承规则</p>
@@ -11107,25 +11095,26 @@ public class Person {
 </dd>
 <dt class="hdlist1"><code>verbose</code></dt>
 <dd>
-<p>控制是否显示详细的处理信息，这对调试有用。一定是 <code>true</code> 的或 <code>false</code> 的。默认为 <code>false</code>。</p>
+<p>控制是否显示详细的处理信息，这对调试有用。一定是 <code>true</code> 的
+或 <code>false</code> 。默认为 <code>false</code>。</p>
 </dd>
 </dl>
 </div>
 </div>
 <div class="sect2">
-<h3 id="validator-annotationprocessor-usage"><a class="anchor" href="#validator-annotationprocessor-usage"></a>13.4. 使用注释处理器</h3>
+<h3 id="validator-annotationprocessor-usage"><a class="anchor" href="#validator-annotationprocessor-usage"></a>13.4. 使用注解处理器</h3>
 <div class="paragraph">
-<p>本节详细说明如何将 Hibernate Validator 注释处理器集成到命令行构建(Maven、 Ant、 javac)以及基于 IDE 的构建(Eclipse、 IntelliJ IDEA、 NetBeans)中。</p>
+<p>本节详细说明如何将 Hibernate Validator 注解处理器集成到命令行构建(Maven、 Ant、 javac)以及基于 IDE 的构建(Eclipse、 IntelliJ IDEA、 NetBeans)中。</p>
 </div>
 <div class="sect3">
 <h4 id="validator-annotationprocessor-commandline"><a class="anchor" href="#validator-annotationprocessor-commandline"></a>13.4.1. 命令行构建</h4>
 <div class="sect4">
 <h5 id="validator-annotationprocessor-maven"><a class="anchor" href="#validator-annotationprocessor-maven"></a>13.4.1.1. Maven</h5>
 <div class="paragraph">
-<p>对于 Maven 使用 Hibernate Validator 注释处理器，可以通过 <code>annotationProcessorPaths</code> 选项设置如下:</p>
+<p>对于 Maven 使用 Hibernate Validator 注解处理器，可以通过 <code>annotationProcessorPaths</code> 选项设置如下:</p>
 </div>
 <div class="exampleblock">
-<div class="title">Example 170. 在 Maven 中使用 Hibernate Validator 注释处理器</div>
+<div class="title">Example 170. 在 Maven 中使用 Hibernate Validator 注解处理器</div>
 <div class="content">
 <div class="listingblock">
 <div class="content">
@@ -11165,10 +11154,10 @@ public class Person {
 <div class="sect4">
 <h5 id="validator-annotationprocessor-gradle"><a class="anchor" href="#validator-annotationprocessor-gradle"></a>13.4.1.2. Gradle</h5>
 <div class="paragraph">
-<p>当使用 <a href="https://gradle.org">Gradle</a> 时，将注释处理器作为一个 <code>annotationProcessor</code> 依赖项引用就足够了。</p>
+<p>当使用 <a href="https://gradle.org">Gradle</a> 时，将注解处理器作为一个 <code>annotationProcessor</code> 依赖项引用就足够了。</p>
 </div>
 <div class="exampleblock">
-<div class="title">Example 171. 使用 Gradle 的注释处理器</div>
+<div class="title">Example 171. 使用 Gradle 的注解处理器</div>
 <div class="content">
 <div class="listingblock">
 <div class="content">
@@ -11185,10 +11174,10 @@ public class Person {
 <div class="sect4">
 <h5 id="validator-annotationprocessor-ant"><a class="anchor" href="#validator-annotationprocessor-ant"></a>13.4.1.3. Apache Ant</h5>
 <div class="paragraph">
-<p>与直接使用 javac 类似，在调用 <a href="http://ant.apache.org/">Apache Ant</a> 的  <a href="http://ant.apache.org/manual/CoreTasks/javac.html">javac task</a> ，可以将注释处理器作为编译器参数添加:</p>
+<p>与直接使用 javac 类似，在调用 <a href="http://ant.apache.org/">Apache Ant</a> 的  <a href="http://ant.apache.org/manual/CoreTasks/javac.html">javac task</a> ，可以将注解处理器作为编译器参数添加:</p>
 </div>
 <div class="exampleblock">
-<div class="title">Example 172. 使用 Ant 的注释处理器</div>
+<div class="title">Example 172. 使用 Ant 的注解处理器</div>
 <div class="content">
 <div class="listingblock">
 <div class="content">
@@ -11209,7 +11198,7 @@ public class Person {
 <p>在命令行上使用 <a href="http://docs.oracle.com/javase/8/docs/technotes/guides/javac/index.html">javac</a> 进行编译时，使用“ processorpath”选项指定 JAR <em>hibernate-validator-annotation-processor-7.0.1.Final.jar</em> ，如下面的清单所示。编译器将自动检测处理器并在编译期间调用它。</p>
 </div>
 <div class="exampleblock">
-<div class="title">Example 173. 使用带 javac 的注释处理器</div>
+<div class="title">Example 173. 使用带 javac 的注解处理器</div>
 <div class="content">
 <div class="listingblock">
 <div class="content">
@@ -11227,10 +11216,10 @@ public class Person {
 <div class="sect4">
 <h5 id="_eclipse"><a class="anchor" href="#_eclipse"></a>13.4.2.1. Eclipse</h5>
 <div class="paragraph">
-<p>如果您已经安装了 <a href="https://www.eclipse.org/m2e/">M2E Eclipse plug-in</a> 插件，那么将为上述配置的 Maven 项目自动设置注释处理器。</p>
+<p>如果您已经安装了 <a href="https://www.eclipse.org/m2e/">M2E Eclipse plug-in</a> 插件，那么将为上述配置的 Maven 项目自动设置注解处理器。</p>
 </div>
 <div class="paragraph">
-<p>对于普通的 Eclipse 项目，按照以下步骤设置注释处理器:</p>
+<p>对于普通的 Eclipse 项目，按照以下步骤设置注解处理器:</p>
 </div>
 <div class="ulist">
 <ul>
@@ -11238,7 +11227,7 @@ public class Person {
 <p>右键单击项目，选择 "Properties"</p>
 </li>
 <li>
-<p>进入「"Java Compiler"  ，确保 "Compiler compliance level" 设定为  "1.8" 。否则处理器将不会被激活</p>
+<p>进入 "Java Compiler"  ，确保 "Compiler compliance level" 设定为  "1.8" 。否则处理器将不会被激活</p>
 </li>
 <li>
 <p>进入 "Java Compiler - Annotation Processing" 并选择 "Enable annotation processing"</p>
@@ -11248,12 +11237,12 @@ public class Person {
 hibernate-validator-annotation-processor-7.0.1.Final.jar</p>
 </li>
 <li>
-<p>确认 the workspace rebuild</p>
+<p>确认并重新构建</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p>现在，您应该可以在编辑器和 "Problem" 视图中看到任何注释问题，它们都是常规的错误标记:</p>
+<p>现在，您应该可以在编辑器和 "Problem" 视图中看到任何注解问题，它们都是常规的错误标记:</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -11264,31 +11253,31 @@ hibernate-validator-annotation-processor-7.0.1.Final.jar</p>
 <div class="sect4">
 <h5 id="validator-annotationprocessor-idea"><a class="anchor" href="#validator-annotationprocessor-idea"></a>13.4.2.2. IntelliJ IDEA</h5>
 <div class="paragraph">
-<p>使用 <a href="http://www.jetbrains.com/idea/">IntelliJ IDEA</a> (9及以上版本)中的注释处理器必须遵循以下步骤:</p>
+<p>使用 <a href="http://www.jetbrains.com/idea/">IntelliJ IDEA</a> (9及以上版本)中的注解处理器必须遵循以下步骤:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>Go to "File", then "Settings",</p>
+<p>点击 "File", 然后是 "Settings",</p>
 </li>
 <li>
-<p>Expand the node "Compiler", then "Annotation Processors"</p>
+<p>展开 "Compiler", 选择 "Annotation Processors"</p>
 </li>
 <li>
-<p>Choose "Enable annotation processing" and enter the following as "Processor path":
+<p>选择 "Enable annotation processing" 然后在 "Processor path" 输入:
 /path/to/hibernate-validator-annotation-processor-7.0.1.Final.jar</p>
 </li>
 <li>
-<p>Add the processor&#8217;s fully qualified name org.hibernate.validator.ap.ConstraintValidationProcessor
-to the "Annotation Processors" list</p>
+<p>添加处理器的标准名称 org.hibernate.validator.ap.ConstraintValidationProcessor
+到“Annotation Processors”列表</p>
 </li>
 <li>
-<p>If applicable add you module to the "Processed Modules" list</p>
+<p>如果适用，将模块添加到"Processed Modules"列表中</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p>Rebuilding your project then should show any erroneous constraint annotations:</p>
+<p>然后，重建项目应显示任何错误的约束注释：</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -11299,26 +11288,24 @@ to the "Annotation Processors" list</p>
 <div class="sect4">
 <h5 id="validator-annotationprocessor-netbeans"><a class="anchor" href="#validator-annotationprocessor-netbeans"></a>13.4.2.3. NetBeans</h5>
 <div class="paragraph">
-<p>The <a href="http://www.netbeans.org/">NetBeans</a> IDE supports using
-annotation processors within the IDE build. To do so, do the following:</p>
+<p><a href="http://www.netbeans.org/">NetBeans</a> 支持在IDE内部使用注解处理器，为此，请执行以下操作：</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>Right-click your project, choose "Properties"</p>
+<p>右键单击您的项目，选择 "Properties"</p>
 </li>
 <li>
-<p>Go to "Libraries", tab "Processor", and add the JAR hibernate-validator-annotation-processor-7.0.1.Final.jar</p>
+<p>转到 "Libraries", 选项卡 "Processor", 然后添加 JAR 包hibernate-validator-annotation-processor-7.0.1.Final.jar</p>
 </li>
 <li>
-<p>Go to "Build - Compiling", select "Enable Annotation Processing" and "Enable Annotation Processing
-in Editor". Add the annotation processor by specifying its fully qualified name
-org.hibernate.validator.ap.ConstraintValidationProcessor</p>
+<p>转到 "Build - Compiling", 选择 "Enable Annotation Processing" 和 "Enable Annotation Processing
+in Editor"。 通过指定其标准名称 org.hibernate.validator.ap.ConstraintValidationProcessor 添加注释处理器</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p>Any constraint annotation problems will then be marked directly within the editor:</p>
+<p>任何约束注释问题将直接在编辑器中标记：</p>
 </div>
 <div class="imageblock">
 <div class="content">
@@ -11329,36 +11316,26 @@ org.hibernate.validator.ap.ConstraintValidationProcessor</p>
 </div>
 </div>
 <div class="sect2">
-<h3 id="validator-annotationprocessor-known-issues"><a class="anchor" href="#validator-annotationprocessor-known-issues"></a>13.5. Known issues</h3>
+<h3 id="validator-annotationprocessor-known-issues"><a class="anchor" href="#validator-annotationprocessor-known-issues"></a>13.5. 已知的问题</h3>
 <div class="paragraph">
-<p>The following known issues exist as of July 2017:</p>
+<p>截至2017年7月，存在以下已知问题：</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>Container element constraints are not supported for now.</p>
+<p>暂时不支持容器元素约束。</p>
 </li>
 <li>
-<p>Constraints applied to a container but in reality applied to the container elements (be it via
-the <code>Unwrapping.Unwrap</code> payload or via a value extractor marked with <code>@UnwrapByDefault</code>) are not supported
-correctly.</p>
+<p>不正确地支持应用于容器但实际上应用于容器元素的约束（通过 <code>Unwrapping.Unwrap</code> 有效负载或通过标有 <code>@UnwrapByDefault</code> 标记的值提取器）。</p>
 </li>
 <li>
-<p><a href="https://hibernate.atlassian.net/browse/HV-308">HV-308</a>: Additional validators
-registered for a constraint
-<a href="http://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/#chapter-xml-configuration">using XML</a> are
-not evaluated by the annotation processor.</p>
+<p><a href="https://hibernate.atlassian.net/browse/HV-308">HV-308</a>: 注解处理器不会评估 <a href="http://docs.jboss.org/hibernate/stable/validator/reference/en-US/html_single/#chapter-xml-configuration">使用 XML</a> 为约束注册的其他验证器。</p>
 </li>
 <li>
-<p>Sometimes custom constraints can&#8217;t be
-<a href="https://hibernate.atlassian.net/browse/HV-293">properly evaluated</a> when
-using the processor within Eclipse. Cleaning the project can help in these situations. This seems to
-be an issue with the Eclipse JSR 269 API implementation, but further investigation is required here.</p>
+<p>在Eclipse中使用处理器时，有时无法 <a href="https://hibernate.atlassian.net/browse/HV-293">正确评估</a> 自定义约束。 在这些情况下，清理项目可能会有所帮助。 Eclipse JSR 269 API的实现似乎是一个问题，但是这里需要进一步的研究。</p>
 </li>
 <li>
-<p>When using the processor within Eclipse, the check of dynamic default group sequence definitions
-doesn&#8217;t work. After further investigation, it seems to be an issue with the Eclipse JSR 269 API
-implementation.</p>
+<p>在Eclipse中使用处理器时，无法检查动态默认组序列定义。 经过进一步研究，Eclipse JSR 269 API实现似乎是一个问题。</p>
 </li>
 </ul>
 </div>
@@ -11376,7 +11353,7 @@ implementation.</p>
 </div>
 <div class="paragraph">
 <p>如果你对 Hibernate Validator 有任何进一步的问题，或者想要分享你的一些用例，可以看看 <a href="http://community.jboss.org/en/hibernate/validator">Hibernate Validator
-Wiki</a> ，https://discourse.hibernate.org/c/hibernate-validator[Hibernate Validator Forum] 和 <a href="https://stackoverflow.com/questions/tagged/hibernate-validator">Hibernate Validator tag on Stack Overflow</a> 。</p>
+Wiki</a> ， <a href="https://discourse.hibernate.org/c/hibernate-validator">Hibernate Validator Forum</a> 和 <a href="https://stackoverflow.com/questions/tagged/hibernate-validator">Hibernate Validator tag on Stack Overflow</a> 。</p>
 </div>
 <div class="paragraph">
 <p>如果您想报告一个 bug，请使用 <a href="https://hibernate.atlassian.net/projects/HV/">Hibernate&#8217;s Jira</a> 。欢迎反馈！</p>

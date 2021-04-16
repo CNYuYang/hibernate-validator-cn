@@ -6,6 +6,6 @@
 示例的一个很好的来源是 Jakarta Bean Validation TCK，它可以在 https://github.com/beanvalidation/beanvalidation-tck/[GitHub] 上进行匿名访问。特别是 TCK 的 https://github.com/beanvalidation/beanvalidation-tck/tree/master/tests[tests] 可能会引起人们的兴趣。 {bvSpecUrl}[The Jakarta Bean Validation] 规范本身也是加深您对 Jakarta Bean Validation和 Hibernate Validator 的理解的一个很好的方法。
 
 如果你对 Hibernate Validator 有任何进一步的问题，或者想要分享你的一些用例，可以看看 http://community.jboss.org/en/hibernate/validator[Hibernate Validator
-Wiki] ，https://discourse.hibernate.org/c/hibernate-validator[Hibernate Validator Forum] 和 https://stackoverflow.com/questions/tagged/hibernate-validator[Hibernate Validator tag on Stack Overflow] 。
+Wiki] ， https://discourse.hibernate.org/c/hibernate-validator[Hibernate Validator Forum] 和 https://stackoverflow.com/questions/tagged/hibernate-validator[Hibernate Validator tag on Stack Overflow] 。
 
 如果您想报告一个 bug，请使用 https://hibernate.atlassian.net/projects/HV/[Hibernate's Jira] 。欢迎反馈！
