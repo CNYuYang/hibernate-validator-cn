@@ -30,7 +30,7 @@ bundle install
 ### HTML格式
 
 ```sh
-asciidoctor asciidoc/index.asciidoc -o output-html/index.html
+asciidoctor -a linkcss -a stylesheet=style.css -a stylesdir=./assets asciidoc/index.asciidoc -o output-html/index.html
 ```
 
 > 该过程会报**WARNING**，可以忽略
